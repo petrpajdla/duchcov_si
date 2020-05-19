@@ -132,26 +132,25 @@ plot_sil_width <- function(x) {
 plot_sil_width(pc_comp$x[, 1:5])
 ```
 
-Both methods suggest optimal number of clusters in the dataset is 4 to 5, we
-chose to use k-means clustering with 4 clusters.
 
 ```{r kmeans}
 # ------------------------------------------------------------------------------
 # please note: to avoid confusion in changes in k-means cluster numbers/colors
 # the cluster assignment was hardcoded in a csv file 'clusters.csv'
 # ------------------------------------------------------------------------------
-# km_comp <- kmeans(pc_comp$x[, 1:5], centers = 4, nstart = 50)
-# write_csv(tibble(kmeans = km_comp$cluster), "../data/clusters.csv")
+# cluster <- tibble(kmeans = kmeans(pc_comp$x[, 1:5], centers = 4, nstart = 50)$cluster) %>% 
+#   mutate(kmeans = as_factor(kmeans))
+# write_csv(cluster), "../data/clusters.csv")
 cluster <- read_csv("../data/clusters.csv") %>%
   mutate(kmeans = factor(kmeans))
 ```
 
 ```{r km-pca, fig.cap="K-means clusters in PCA space"}
-# ggplot(as_tibble(pc_comp$x), aes(PC1, PC2, fill = cluster$kmeans)) +
-#   geom_mark_hull(aes(color = cluster$kmeans), expand = unit(2.4, "mm")) +
-#   geom_point(aes(shape = cluster$kmeans, color = cluster$kmeans)) +
-#   scale_fill_brewer(palette = "Set1") + scale_color_brewer(palette = "Set1") +
-#   labs(fill = "k-means\ncluster", color = "k-means\ncluster", shape = "k-means\ncluster")
+ggplot(as_tibble(pc_comp$x), aes(PC1, PC2, fill = cluster$kmeans)) +
+  geom_mark_hull(aes(color = cluster$kmeans), expand = unit(2.4, "mm")) +
+  geom_point(aes(shape = cluster$kmeans, color = cluster$kmeans)) +
+  scale_fill_brewer(palette = "Set1") + scale_color_brewer(palette = "Set1") +
+  labs(fill = "k-means\ncluster", color = "k-means\ncluster", shape = "k-means\ncluster")
 ```
 
 Mean values for different element compositions in the clusters 1 to 4:
@@ -192,20 +191,20 @@ lab_207_208 <- labs(x = expression(paste(""^207, "Pb/", ""^206, "Pb")),
 
 
 ```{r kmiso, fig.cap="K-means clusters in isospace"}
-# ggplot(isotopes, aes(Pb206_204, Pb207_204)) +
-#   geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
-#   scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
-#   labs(shape = "k-means\ncluster") + lab_206_207
-# 
-# ggplot(isotopes, aes(Pb206_204, Pb208_204)) +
-#   geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
-#   scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
-#   labs(shape = "k-means\ncluster") + lab_206_208
-# 
-# ggplot(isotopes, aes(Pb207_206, Pb208_206)) +
-#   geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
-#   scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
-#   labs(shape = "k-means\ncluster") + lab_207_208
+ggplot(isotopes, aes(Pb206_204, Pb207_204)) +
+  geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
+  scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
+  labs(shape = "k-means\ncluster") + lab_206_207
+
+ggplot(isotopes, aes(Pb206_204, Pb208_204)) +
+  geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
+  scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
+  labs(shape = "k-means\ncluster") + lab_206_208
+
+ggplot(isotopes, aes(Pb207_206, Pb208_206)) +
+  geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
+  scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
+  labs(shape = "k-means\ncluster") + lab_207_208
 ```
 
 ```{r}
@@ -228,8 +227,7 @@ sources <- read_csv("../data/ore_sources.csv") %>%
                           levels = c("Valais", "Rheinland", "Saarland",
                                      "Rammelsberg", "Harz",
                                      "E Alps", "SE Alps", "Erzgebirge", 
-                                     "Slovakia", "E Carpathians"))) %>%
-  drop_na()
+                                     "Slovakia", "E Carpathians")))
 
 # frame margins of further plots
 dist_duchcov <- vector(mode = "list")
@@ -476,7 +474,7 @@ euclidean_distance <- point_cloud_distance(origin = src, goal = iso,
 #   scale_fill_viridis_d(direction = -1, end = 0.9) +
 #   coord_cartesian(xlim = c(0, 1)) +
 #   facet_wrap(~kmeans, scales = "fixed") +
-#   labs(y = "Region", 
+#   labs(y = "Region",
 #        x = "Euclidean distance to a given Duchcov K-means cluster (x axis limited to interval 0 - 1)")
 ```
 
@@ -499,7 +497,7 @@ mahalanobis_distance <- point_cloud_distance(origin = src, goal = iso,
 #   scale_fill_viridis_d(direction = -1, end = 0.9) +
 #   coord_cartesian(xlim = c(0, 10)) +
 #   facet_wrap(~kmeans, scales = "fixed") +
-#   labs(y = "Region", 
+#   labs(y = "Region",
 #        x = "Mahalanobis distance to a given Duchcov K-means cluster (x axis limited to interval 0 - 10)")
 ```
 
@@ -511,41 +509,11 @@ rm(list = c("iso", "src", "nest_matrix", "point_cloud_distance"))
 
 Manova is used in order to determine whether there are significant differences
 between group means for the distinct regions.
-Most of the group means are significantly different in most of the dimensions
-defined by different lead isotopes.
-Region means that are not sig. different are Slovakia, Easter Carpathians and
-South-Eastern Alpes (see results below).
-Pillai test on MANOVA is significant, thus the region means combined for all
-the variables (lead isotopic values) are significantly different.
-
-```{r filter-regions}
-med_d_all <- mahalanobis_distance %>% 
-  dplyr::summarize(median = median(value, na.rm = TRUE)) %>% 
-  pull(median)
-
-med_d_regions <- mahalanobis_distance %>% group_by(region) %>%
-  dplyr::summarize(med_d = median(value, na.rm = TRUE))
-
-med_d_regions %>%   
-  ggplot(aes(x = med_d, y = fct_reorder(region, med_d))) +
-  geom_point() +
-  geom_vline(xintercept = med_d_all) +
-  labs(x = "Median MD", y = "Region")
-
-filtered_regions <- med_d_regions %>% filter(med_d < med_d_all,
-                                             region != "Slovakia")
-```
-
-Only regions with median Mahalanobis distance smaller than 5 are included
-in LDA with exception of Slovakia. Slovakia has leser Mahalanobis distance,
-but is removed from the test, because according to MANOVA, it is the only
-one group that is not significantly different.
 
 ```{r lm}
-sources_subset <- sources %>% filter(Region %in% filtered_regions$region) %>% 
-  mutate(Region = fct_drop(Region))
-sources_lm <- lm(as.matrix(sources_subset[, c("Pb207_206", "Pb208_206",
-                                              "Pb206_204", "Pb207_204", "Pb208_204")]) ~ sources_subset$Region)
+sources_lm <- lm(as.matrix(sources[, c("Pb207_206", "Pb208_206",
+                                       "Pb206_204", "Pb207_204", "Pb208_204")]) ~ sources$Region2)
+
 summary(sources_lm)
 
 summary(manova(sources_lm), test = "Pillai")
@@ -557,10 +525,11 @@ summary(manova(sources_lm), test = "Pillai")
 Linear discriminant analysis is then used to separate the regions.
 
 ```{r lda}
-n_levels_sources <- length(levels(sources_subset$Region))
-sources_lda <- MASS::lda(Region ~ ., sources_subset[, c("Region", 
-                                                        "Pb207_206", "Pb208_206", 
-                                                        "Pb206_204", "Pb207_204", "Pb208_204")],
+n_levels_sources <- length(levels(sources$Region2))
+
+sources_lda <- MASS::lda(Region2 ~ ., sources[, c("Region2", 
+                                                  "Pb207_206", "Pb208_206", 
+                                                  "Pb206_204", "Pb207_204", "Pb208_204")],
                          prior = as.double(
                            paste(
                              rep(1/n_levels_sources, 
@@ -568,17 +537,13 @@ sources_lda <- MASS::lda(Region ~ ., sources_subset[, c("Region",
 sources_lda
 ```
 
-The LDA works, but the there are problems in classification of points,
-meaning it is not accurate.
-(LDA is limited to the data distributions of regions that are the most proximal
-to the points of interest according to Mahalanobis distance).
-Using the LDA to predict the regions, we get a lot of error, see the confusion matrix below.
+Using the LDA to predict the regions of original points, we get a lot of error, see the confusion matrix below.
 How to read it: rows are the regions the point is from and columns are regions predicted
 based on the LDA.
 
 ```{r confusion-matrix}
 sources_pred <- predict(sources_lda)
-prediction <- with(sources_pred, data.frame(Region = sources_subset$Region,
+prediction <- with(sources_pred, data.frame(Region = sources$Region2,
                                             Predict = class, round(posterior, 2)))
 
 knitr::kable(addmargins(xtabs(~fct_drop(Region) + fct_drop(Predict), prediction)), 
@@ -766,78 +731,78 @@ origin <- bind_rows(duchcov = duchcov[, c("Pb207_204", "Pb206_204",
 <!--
 ```{r density206-207, fig.cap="Density distribution of burial finds and Duchcov hoard"}
 pmain206_207 <- ggplot(origin, aes(Pb206_204, Pb207_204, color = origin)) +
-  stat_density2d(show.legend = FALSE, alpha = 0.4) +
-  geom_point(size = 2, alpha = 0.4) +
-  scale_color_brewer(palette = "Set1") +
-  labs(color = "Origin") + lab_206_207
+stat_density2d(show.legend = FALSE, alpha = 0.4) +
+geom_point(size = 2, alpha = 0.4) +
+scale_color_brewer(palette = "Set1") +
+labs(color = "Origin") + lab_206_207
 
 ydens206_207 <- axis_canvas(pmain206_207, axis = "y", coord_flip = TRUE) +
-  geom_density(data = origin, aes(x = Pb207_204, fill = origin),
-               alpha = 0.2, size = 0.2)+
-  coord_flip() +
-  scale_fill_brewer(palette = "Set1")
+geom_density(data = origin, aes(x = Pb207_204, fill = origin),
+alpha = 0.2, size = 0.2)+
+coord_flip() +
+scale_fill_brewer(palette = "Set1")
 
 xdens206_207 <- axis_canvas(pmain206_207, axis = "x", coord_flip = FALSE) +
-  geom_density(data = origin, aes(x = Pb206_204, fill = origin),
-               alpha = 0.2, size = 0.2) +
-  scale_fill_brewer(palette = "Set1")
+geom_density(data = origin, aes(x = Pb206_204, fill = origin),
+alpha = 0.2, size = 0.2) +
+scale_fill_brewer(palette = "Set1")
 
 pfinal206_207 <- insert_yaxis_grob(pmain206_207, ydens206_207, 
-                                   grid::unit(.2, "null"), position = "right")
+grid::unit(.2, "null"), position = "right")
 pfinal206_207 <- insert_xaxis_grob(pfinal206_207, xdens206_207, 
-                                   grid::unit(.2, "null"), position = "top")
+grid::unit(.2, "null"), position = "top")
 
 ggdraw(pfinal206_207)
 ```
 
 ```{r density206-208, fig.cap="Density distribution of burial finds and Duchcov hoard"}
 pmain206_208 <- ggplot(origin, aes(Pb206_204, Pb208_204, color = origin)) +
-  stat_density2d(show.legend = FALSE, alpha = 0.4) +
-  geom_point(size = 2, alpha = 0.4) +
-  scale_color_brewer(palette = "Set1") +
-  labs(color = "Origin") + lab_206_208
+stat_density2d(show.legend = FALSE, alpha = 0.4) +
+geom_point(size = 2, alpha = 0.4) +
+scale_color_brewer(palette = "Set1") +
+labs(color = "Origin") + lab_206_208
 
 ydens206_208 <- axis_canvas(pmain206_208, axis = "y", coord_flip = TRUE) +
-  geom_density(data = origin, aes(x = Pb208_204, fill = origin),
-               alpha = 0.2, size = 0.2)+
-  coord_flip() +
-  scale_fill_brewer(palette = "Set1")
+geom_density(data = origin, aes(x = Pb208_204, fill = origin),
+alpha = 0.2, size = 0.2)+
+coord_flip() +
+scale_fill_brewer(palette = "Set1")
 
 xdens206_208 <- axis_canvas(pmain206_208, axis = "x", coord_flip = FALSE) +
-  geom_density(data = origin, aes(x = Pb206_204, fill = origin),
-               alpha = 0.2, size = 0.2) +
-  scale_fill_brewer(palette = "Set1")
+geom_density(data = origin, aes(x = Pb206_204, fill = origin),
+alpha = 0.2, size = 0.2) +
+scale_fill_brewer(palette = "Set1")
 
 pfinal206_208 <- insert_yaxis_grob(pmain206_208, ydens206_208, 
-                                   grid::unit(.2, "null"), position = "right")
+grid::unit(.2, "null"), position = "right")
 pfinal206_208 <- insert_xaxis_grob(pfinal206_208, xdens206_208, 
-                                   grid::unit(.2, "null"), position = "top")
+grid::unit(.2, "null"), position = "top")
 
 ggdraw(pfinal206_208)
 ```
 
 ```{r density207-208, fig.cap="Density distribution of burial finds and Duchcov hoard"}
 pmain207_208 <- ggplot(origin, aes(Pb207_206, Pb208_206, color = origin)) +
-  stat_density2d(show.legend = FALSE, alpha = 0.4) +
-  geom_point(size = 2, alpha = 0.4) +
-  scale_color_brewer(palette = "Set1") +
-  labs(color = "Origin") + lab_207_208
+stat_density2d(show.legend = FALSE, alpha = 0.4) +
+geom_point(size = 2, alpha = 0.4) +
+scale_color_brewer(palette = "Set1") +
+labs(color = "Origin") + lab_207_208
 
 ydens207_208 <- axis_canvas(pmain207_208, axis = "y", coord_flip = TRUE) +
-  geom_density(data = origin, aes(x = Pb208_206, fill = origin),
-               alpha = 0.2, size = 0.2)+
-  coord_flip() +
-  scale_fill_brewer(palette = "Set1")
+geom_density(data = origin, aes(x = Pb208_206, fill = origin),
+alpha = 0.2, size = 0.2)+
+coord_flip() +
+scale_fill_brewer(palette = "Set1")
 
 xdens207_208 <- axis_canvas(pmain207_208, axis = "x", coord_flip = FALSE) +
-  geom_density(data = origin, aes(x = Pb207_206, fill = origin),
-               alpha = 0.2, size = 0.2) +
-  scale_fill_brewer(palette = "Set1")
+geom_density(data = origin, aes(x = Pb207_206, fill = origin),
+alpha = 0.2, size = 0.2) +
+scale_fill_brewer(palette = "Set1")
 
 pfinal207_208 <- insert_yaxis_grob(pmain207_208, ydens207_208, 
-                                   grid::unit(.2, "null"), position = "right")
+grid::unit(.2, "null"), position = "right")
 pfinal207_208 <- insert_xaxis_grob(pfinal207_208, xdens207_208, 
-                                   grid::unit(.2, "null"), position = "top")
+grid::unit(.2, "null"), position = "top")
 
 ggdraw(pfinal207_208)
 ```
