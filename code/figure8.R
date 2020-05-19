@@ -30,8 +30,7 @@ sources <- read_csv("./data/ore_sources.csv") %>%
          levels = c("Valais", "Rheinland", "Saarland",
                     "Harz", "Rammelsberg",
                     "E Alps", "SE Alps", "Erzgebirge", 
-                    "Slovakia", "E Carpathians"))) %>%
-  drop_na()
+                    "Slovakia", "E Carpathians")))
 
 sources <- sources %>% filter(Outlier == FALSE)
 
@@ -109,6 +108,9 @@ mahalanobis_distance <- point_cloud_distance(origin = src, goal = iso,
                                              method = "mahalanobis") %>% 
   mutate(region = fct_relevel(region, levels(sources$Region2)))
 
+ed_sum <- euclidean_distance %>% group_by(kmeans, region) %>% dplyr::summarize(m = mean(value))
+md_sum <- mahalanobis_distance %>% group_by(kmeans, region) %>% dplyr::summarize(m = mean(value))
+
 # plot =========================================================================
 # Figure 8: Euclidian (A) and Mahalanobis (B) distances between Duchcov K-means clusters and ore deposits in wider central Europe.
 f8A <- ggplot(euclidean_distance, aes(y = region, x = value, fill = region)) +
@@ -117,7 +119,9 @@ f8A <- ggplot(euclidean_distance, aes(y = region, x = value, fill = region)) +
   coord_cartesian(xlim = c(0, 1)) +
   facet_wrap(~kmeans, scales = "fixed") +
   labs(y = "Region", x = "ED (x axis limited to interval 0 - 1)",
-       title = "(A) Euclidean distance")
+       title = "(A) Euclidean distance") +
+  geom_point(data = ed_sum, aes(y = region, x = m), shape = 4, size = 1,
+             show.legend = FALSE)
 
 f8B <- ggplot(mahalanobis_distance, aes(y = region, x = value, fill = region)) +
   ggridges::geom_density_ridges(alpha = 0.4, show.legend = FALSE, scale = 1.1) +
@@ -125,7 +129,9 @@ f8B <- ggplot(mahalanobis_distance, aes(y = region, x = value, fill = region)) +
   coord_cartesian(xlim = c(0, 10)) +
   facet_wrap(~kmeans, scales = "fixed") +
   labs(y = "Region", x = "MD (x axis limited to interval 0 - 10)",
-       title = "(B) Mahalanobis distance")
+       title = "(B) Mahalanobis distance") +
+  geom_point(data = md_sum, aes(y = region, x = m), shape = 4, size = 1,
+             show.legend = FALSE)
 
 # f8A <- ggplot(distances_km, aes(reorder(region, value, mean), value, color = region)) +
 #   geom_boxplot(show.legend = FALSE) +

@@ -44,8 +44,7 @@ sources <- read_csv("./data/ore_sources.csv") %>%
                          levels = c("Valais", "Rheinland", "Saarland",
                                     "Rammelsberg", "Harz",
                                     "E Alps", "SE Alps", "Erzgebirge", 
-                                    "Slovakia", "E Carpathians"))) %>%
-  drop_na()
+                                    "Slovakia", "E Carpathians")))
 
 sources <- sources %>% filter(Outlier == FALSE)
 
