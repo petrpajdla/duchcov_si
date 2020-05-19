@@ -3,3 +3,12 @@
 .Rproj.user/
 *.Rproj
 .Rproj.user
+
+# raw text of the article
+text/
+
+# data on ore sources
+data/ore_sources.csv
+
+# backups
+*.zip
