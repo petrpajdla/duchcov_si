@@ -4,6 +4,9 @@
 *.Rproj
 .Rproj.user
 
+# make Rout files
+*.Rout
+
 # raw text of the article
 text/
 
