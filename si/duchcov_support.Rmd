@@ -34,7 +34,7 @@ Following `R` packages are used:
 `cowplot` [@wilke2019],
 `corrplot` [@corrplot2017],
 `knitr` [@knitr], `DT` [@DT], `bookdown` [@bookdown], 
-`grid` [@rct2020], `gridExtra` [@gridE].
+`grid` [@rct2020], `gridExtra` [@gridE], `here`[@here].
 
 ```{r setup}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align = "center")
@@ -47,7 +47,7 @@ library(tidyverse)
 ```
 
 ```{r data}
-duchcov <- read_csv("../data/duchcov.csv")
+duchcov <- read_csv(here::here("data", "duchcov.csv"))
 ```
 
 # Composition analysis
@@ -141,7 +141,7 @@ plot_sil_width(pc_comp$x[, 1:5])
 # cluster <- tibble(kmeans = kmeans(pc_comp$x[, 1:5], centers = 4, nstart = 50)$cluster) %>% 
 #   mutate(kmeans = as_factor(kmeans))
 # write_csv(cluster), "../data/clusters.csv")
-cluster <- read_csv("../data/clusters.csv") %>%
+cluster <- read_csv(here::here("data", "clusters.csv")) %>%
   mutate(kmeans = factor(kmeans))
 ```
 
@@ -217,7 +217,7 @@ Here we compare the distributions of Duchcov k-means clusters with distributions
 of known sources based on lead isotopes.
 
 ```{r data-sources}
-sources <- read_csv("../data/ore_sources.csv") %>%
+sources <- read_csv(here::here("data", "ore_sources.csv")) %>%
   mutate(Region = factor(Region,
                          levels = c("Valais", "Rheinland", "Saarland",
                                     "Rammelsberg & Harz",
@@ -624,7 +624,7 @@ rm(list = c("med_d_all", "med_d_regions",
 # Burial grounds
 
 ```{r data-burials}
-burials <- read_csv("../data/burial_grounds.csv")
+burials <- read_csv(here::here("data", "burial_grounds.csv"))
 ```
 
 ```{r brooch}
