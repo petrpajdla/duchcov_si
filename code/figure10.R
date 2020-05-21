@@ -3,11 +3,11 @@ library(ggforce)
 library(tidyverse)
 library(cowplot)
 
-duchcov <- read_csv("./data/duchcov.csv")
+duchcov <- read_csv(here::here("data", "duchcov.csv"))
 
-burials <- read_csv("./data/burial_grounds.csv")
+burials <- read_csv(here::here("data", "burial_grounds.csv"))
 
-duchcov$cluster_km <- read_csv("./data/clusters.csv") %>%
+duchcov$cluster_km <- read_csv(here::here("data", "clusters.csv")) %>%
   mutate(kmeans = factor(kmeans)) %>%
   dplyr::pull()
 
@@ -122,4 +122,4 @@ f10C <- ggdraw(pfinal207_208)
 f10 <- grid.arrange(f10A, f10B, f10C, ncol = 1)
 # dev.off()
 
-ggsave("./plots/FIG10.pdf", plot = f10, device = "pdf", width = 90, height = 240, units = "mm")
+ggsave(here::here("plots", "FIG10.pdf"), plot = f10, device = "pdf", width = 90, height = 240, units = "mm")

@@ -3,9 +3,9 @@ library(ggforce)
 library(tidyverse)
 library(cowplot)
 
-duchcov <- read_csv("./data/duchcov.csv")
+duchcov <- read_csv(here::here("data", "duchcov.csv"))
 
-cluster <- read_csv("./data/clusters.csv") %>%
+cluster <- read_csv(here::here("data", "clusters.csv")) %>%
   mutate(kmeans = factor(kmeans))
 
 isotopes <- duchcov %>%
@@ -34,7 +34,7 @@ dist_duchcov$Pb208y$max <-  max(isotopes$Pb208_206, na.rm = TRUE)
 dist_duchcov$Pb207x$min <-  min(isotopes$Pb207_206, na.rm = TRUE)
 dist_duchcov$Pb207x$max <-  max(isotopes$Pb207_206, na.rm = TRUE)
 
-sources <- read_csv("./data/ore_sources.csv") %>%
+sources <- read_csv(here::here("data", "ore_sources.csv")) %>%
   mutate(Region = factor(Region,
                          levels = c("Valais", "Rheinland", "Saarland",
                                     "Rammelsberg & Harz",
@@ -115,5 +115,5 @@ f7C <- gg_207_208 +
 
 f7ab <- grid.arrange(f7A, f7B,nrow = 2)
 
-ggsave("./plots/FIG7_1.pdf", plot = f7ab, device = "pdf", width = 190, height = 240, units = "mm", scale = 1)
-ggsave("./plots/FIG7_2.pdf", plot = f7C, device = "pdf", width = 190, height = 120, units = "mm", scale = 1)
+ggsave(here::here("plots", "FIG7_1.pdf"), plot = f7ab, device = "pdf", width = 190, height = 240, units = "mm", scale = 1)
+ggsave(here::here("plots", "FIG7_2.pdf"), plot = f7C, device = "pdf", width = 190, height = 120, units = "mm", scale = 1)

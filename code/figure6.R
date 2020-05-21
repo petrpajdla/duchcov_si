@@ -3,9 +3,9 @@ library(ggforce)
 library(tidyverse)
 library(cowplot)
 
-duchcov <- read_csv("./data/duchcov.csv")
+duchcov <- read_csv(here::here("data", "duchcov.csv"))
 
-cluster <- read_csv("./data/clusters.csv") %>%
+cluster <- read_csv(here::here("data", "clusters.csv")) %>%
   mutate(kmeans = factor(kmeans))
 
 isotopes <- duchcov %>%
@@ -51,5 +51,5 @@ f6C <- ggplot(isotopes, aes(Pb207_206, Pb208_206)) +
 
 f6 <- grid.arrange(f6A, f6B, f6C, ncol = 1)
 
-ggsave("./plots/FIG6.pdf", plot = f6, device = "pdf", width = 90, height = 240, units = "mm")
+ggsave(here::here("plots", "FIG6.pdf"), plot = f6, device = "pdf", width = 90, height = 240, units = "mm")
 

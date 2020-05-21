@@ -1,9 +1,8 @@
 library(gridExtra)
-library(ggforce)
 library(tidyverse)
-library(cowplot)
+library(ggforce)
 
-duchcov <- read_csv("./data/duchcov.csv")
+duchcov <- read_csv(here::here("data", "duchcov.csv"))
 
 composition <- duchcov %>%
   select(Li:Bi) %>%
@@ -12,7 +11,7 @@ rownames(composition) <- duchcov$id
 
 elements <- c("Co", "Ni", "Zn", "As", "Ag", "Sb", "Pb")
 
-cluster <- read_csv("./data/clusters.csv") %>%
+cluster <- read_csv(here::here("data", "clusters.csv")) %>%
   mutate(kmeans = factor(kmeans))
 
 # values are scaled to mean 0 and sd 1
@@ -37,4 +36,4 @@ f5B <- ggplot(as_tibble(pc_comp$x), aes(PC1, PC2, fill = cluster$kmeans)) +
 
 f5 <- grid.arrange(f5A, f5B, ncol = 2)
 
-ggsave("./plots/FIG5.pdf", plot = f5, device = "pdf", width = 190, height = 80, units = "mm", scale = 1)
+ggsave(filename = here::here("plots", "FIG5.pdf"), plot = f5, device = "pdf", width = 190, height = 80, units = "mm", scale = 1)

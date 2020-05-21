@@ -3,9 +3,9 @@ library(ggforce)
 library(tidyverse)
 library(cowplot)
 
-duchcov <- read_csv("./data/duchcov.csv")
+duchcov <- read_csv(here::here("data", "duchcov.csv"))
 
-cluster <- read_csv("./data/clusters.csv") %>%
+cluster <- read_csv(here::here("data", "clusters.csv")) %>%
   mutate(kmeans = factor(kmeans))
 
 isotopes <- duchcov %>%
@@ -20,7 +20,7 @@ lab_206_208 <- labs(x = expression(paste(""^206, "Pb/", ""^204, "Pb")),
 lab_207_208 <- labs(x = expression(paste(""^207, "Pb/", ""^206, "Pb")),
                     y = expression(paste(""^208, "Pb/", ""^206, "Pb")))
 
-sources <- read_csv("./data/ore_sources.csv") %>%
+sources <- read_csv(here::here("data", "ore_sources.csv")) %>%
   mutate(Region = factor(Region,
                          levels = c("Valais", "Rheinland", "Saarland",
                                     "Rammelsberg & Harz",
@@ -151,5 +151,5 @@ f8B <- ggplot(mahalanobis_distance, aes(y = region, x = value, fill = region)) +
 f8 <- grid.arrange(f8A, f8B, ncol = 1)
 # dev.off()
 
-ggsave("./plots/FIG8.pdf", plot = f8, device = "pdf", width = 140, height = 240, units = "mm", scale = 1)
+ggsave(here::here("plots", "FIG8.pdf"), plot = f8, device = "pdf", width = 140, height = 240, units = "mm", scale = 1)
 
