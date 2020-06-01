@@ -8,10 +8,12 @@
 *.Rout
 
 # raw text of the article
-text/
+/text/
 
-# data on ore sources
-data/ore_sources.csv
+# data on ore sources, raw data, temporary data
+/data/raw
+/data/temp
+/data/ore_sources.csv
 
 # backups
 *.zip
