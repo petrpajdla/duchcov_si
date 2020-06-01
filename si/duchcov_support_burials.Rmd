@@ -1,0 +1,282 @@
+---
+title: "Duchcov hoard: SI Comparison with burials"
+author: "Alžběta Danielisová, Petr Pajdla"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  bookdown::html_document2:
+    theme: spacelab
+    highlight: tango
+    number_sections: no
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    fig.caption: true
+bibliography: duchcov_references.bib
+csl: journal-of-archaeological-science.csl
+---
+
+```{r setup}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align = "center")
+set.seed(42)
+```
+
+```{r packages, message=FALSE}
+library(ggforce)
+library(tidyverse)
+```
+
+```{r data}
+# input csv
+duchcov <- read_csv(here::here("data", "duchcov.csv"))
+
+# composition analysis
+composition <- duchcov %>%
+  select(Li:Bi) %>%
+  as.matrix()
+rownames(composition) <- duchcov$id
+
+# elements selected for further analysis
+elements <- c("Co", "Ni", "Zn", "As", "Ag", "Sb", "Pb")
+
+# clusters in Duchcov hoard based on composition
+cluster <- read_csv(here::here("data", "clusters.csv")) %>%
+  mutate(kmeans = factor(kmeans))
+
+# lead isotopes
+isotopes <- duchcov %>%
+  select(id, starts_with("Pb2"))
+isotopes <- bind_cols(isotopes, cluster)
+```
+
+```{r labels}
+lab_206_207 <- labs(x = expression(paste(""^206, "Pb/", ""^204, "Pb")),
+                    y = expression(paste(""^207, "Pb/", ""^204, "Pb")))
+lab_206_208 <- labs(x = expression(paste(""^206, "Pb/", ""^204, "Pb")),
+                    y = expression(paste(""^208, "Pb/", ""^204, "Pb")))
+lab_207_208 <- labs(x = expression(paste(""^207, "Pb/", ""^206, "Pb")),
+                    y = expression(paste(""^208, "Pb/", ""^206, "Pb")))
+```
+
+# Burial grounds
+
+```{r data-burials}
+burials <- read_csv(here::here("data", "burial_grounds.csv"))
+```
+
+In this part of SI the artefacts from burial grounds are compared with items from the Duchcov 
+hoard in terms of their composition and lead isotopes.
+
+```{r brooch}
+duchcov <- duchcov %>% 
+  transmute(brooch = if_else(str_detect(type_eng, "^brooch_"),
+                             "brooch", "not brooch"),
+            brooch = factor(brooch, levels = c("brooch", "not brooch")),
+            id = id) %>%
+  left_join(isotopes)
+
+burials <- burials %>% mutate(brooch = if_else(str_detect(type_eng, "brooch_"),
+                                               "brooch", "not brooch"),
+                              brooch = factor(brooch, levels = c("brooch", "not brooch"))) %>% 
+  select(-type_eng)
+```
+
+```{r burials-gg}
+g_bur_206_207 <- ggplot(burials, aes(Pb206_204, Pb207_204)) +
+  labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
+  lab_206_207 +
+  theme(legend.position = c(0.84, 0.2)) +
+  guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2))
+g_bur_206_208 <- ggplot(burials, aes(Pb206_204, Pb208_204)) +
+  labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
+  lab_206_208 +
+  theme(legend.position = c(0.84, 0.2)) +
+  guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2))
+g_bur_207_208 <- ggplot(burials, aes(Pb207_206, Pb208_206)) +
+  labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
+  lab_207_208 +
+  theme(legend.position = c(0.84, 0.2)) +
+  guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2))
+```
+
+## Convex hulls of isotope signals of artefacts from burials
+
+```{r burials, fig.cap="Distribution of data from different burials (LTB1 horizon) overlayed with Duchcov hoard"}
+g_bur_206_207 + geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_mark_hull(aes(color = site, fill = site), expand = unit(2.4, "mm"),
+                 alpha = 0.1, show.legend = FALSE) +
+  scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
+  geom_point(data = duchcov, aes(shape = kmeans), size = 2, alpha = 0.4) +
+  facet_wrap(~site)
+
+g_bur_206_208 + geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_mark_hull(aes(color = site, fill = site), expand = unit(2.4, "mm"),
+                 alpha = 0.1, show.legend = FALSE) +
+  scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
+  geom_point(data = duchcov, aes(shape = kmeans), size = 2, alpha = 0.4) +
+  facet_wrap(~site)
+
+g_bur_207_208 + geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_mark_hull(aes(color = site, fill = site), expand = unit(2.4, "mm"),
+                 alpha = 0.1, show.legend = FALSE) +
+  scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
+  geom_point(data = duchcov, aes(shape = kmeans), size = 2, alpha = 0.4) +
+  facet_wrap(~site)
+```
+
+## Kernel density estimates
+
+```{r kde-burials, fig.cap="KDE of data from different burials overlayed with Duchcov hoard"}
+g_bur_206_207 +
+  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
+  scale_fill_gradient(low = "white", high = "black") +
+  scale_color_brewer(palette = "Set1") +
+  geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_point(data = duchcov, aes(shape = kmeans), size = 1.4, alpha = 0.4) +
+  facet_wrap(~site)
+
+g_bur_206_208 +
+  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
+  scale_fill_gradient(low = "white", high = "black") +
+  scale_color_brewer(palette = "Set1") +
+  geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_point(data = duchcov, aes(shape = kmeans), size = 1.4, alpha = 0.4) +
+  facet_wrap(~site)
+
+g_bur_207_208 +
+  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
+  scale_fill_gradient(low = "white", high = "black") +
+  scale_color_brewer(palette = "Set1") +
+  geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_point(data = duchcov, aes(shape = kmeans), size = 1.4, alpha = 0.4) +
+  facet_wrap(~site)
+```
+
+
+## Density distributions of burials and Duchcov hoard artefacts
+
+```{r}
+library(cowplot)
+```
+
+```{r bind-duchcov-burials}
+origin <- bind_rows(duchcov = duchcov[, c("Pb207_204", "Pb206_204", 
+                                          "Pb208_204", "Pb208_206", 
+                                          "Pb207_206", "brooch")],
+                    burials = burials[, c("Pb207_204", "Pb206_204", 
+                                          "Pb208_204", "Pb208_206", 
+                                          "Pb207_206", "brooch")],
+                    .id = "origin")
+```
+
+```{r density206-207, fig.cap="Density distribution of burial finds and Duchcov hoard"}
+pmain206_207 <- ggplot(origin, aes(Pb206_204, Pb207_204, color = origin)) +
+stat_density2d(show.legend = FALSE, alpha = 0.4) +
+geom_point(size = 2, alpha = 0.4) +
+scale_color_brewer(palette = "Set1") +
+labs(color = "Origin") + lab_206_207
+
+ydens206_207 <- axis_canvas(pmain206_207, axis = "y", coord_flip = TRUE) +
+geom_density(data = origin, aes(x = Pb207_204, fill = origin),
+alpha = 0.2, size = 0.2)+
+coord_flip() +
+scale_fill_brewer(palette = "Set1")
+
+xdens206_207 <- axis_canvas(pmain206_207, axis = "x", coord_flip = FALSE) +
+geom_density(data = origin, aes(x = Pb206_204, fill = origin),
+alpha = 0.2, size = 0.2) +
+scale_fill_brewer(palette = "Set1")
+
+pfinal206_207 <- insert_yaxis_grob(pmain206_207, ydens206_207, 
+grid::unit(.2, "null"), position = "right")
+pfinal206_207 <- insert_xaxis_grob(pfinal206_207, xdens206_207, 
+grid::unit(.2, "null"), position = "top")
+
+ggdraw(pfinal206_207)
+```
+
+```{r density206-208, fig.cap="Density distribution of burial finds and Duchcov hoard"}
+pmain206_208 <- ggplot(origin, aes(Pb206_204, Pb208_204, color = origin)) +
+stat_density2d(show.legend = FALSE, alpha = 0.4) +
+geom_point(size = 2, alpha = 0.4) +
+scale_color_brewer(palette = "Set1") +
+labs(color = "Origin") + lab_206_208
+
+ydens206_208 <- axis_canvas(pmain206_208, axis = "y", coord_flip = TRUE) +
+geom_density(data = origin, aes(x = Pb208_204, fill = origin),
+alpha = 0.2, size = 0.2)+
+coord_flip() +
+scale_fill_brewer(palette = "Set1")
+
+xdens206_208 <- axis_canvas(pmain206_208, axis = "x", coord_flip = FALSE) +
+geom_density(data = origin, aes(x = Pb206_204, fill = origin),
+alpha = 0.2, size = 0.2) +
+scale_fill_brewer(palette = "Set1")
+
+pfinal206_208 <- insert_yaxis_grob(pmain206_208, ydens206_208, 
+grid::unit(.2, "null"), position = "right")
+pfinal206_208 <- insert_xaxis_grob(pfinal206_208, xdens206_208, 
+grid::unit(.2, "null"), position = "top")
+
+ggdraw(pfinal206_208)
+```
+
+```{r density207-208, fig.cap="Density distribution of burial finds and Duchcov hoard"}
+pmain207_208 <- ggplot(origin, aes(Pb207_206, Pb208_206, color = origin)) +
+stat_density2d(show.legend = FALSE, alpha = 0.4) +
+geom_point(size = 2, alpha = 0.4) +
+scale_color_brewer(palette = "Set1") +
+labs(color = "Origin") + lab_207_208
+
+ydens207_208 <- axis_canvas(pmain207_208, axis = "y", coord_flip = TRUE) +
+geom_density(data = origin, aes(x = Pb208_206, fill = origin),
+alpha = 0.2, size = 0.2)+
+coord_flip() +
+scale_fill_brewer(palette = "Set1")
+
+xdens207_208 <- axis_canvas(pmain207_208, axis = "x", coord_flip = FALSE) +
+geom_density(data = origin, aes(x = Pb207_206, fill = origin),
+alpha = 0.2, size = 0.2) +
+scale_fill_brewer(palette = "Set1")
+
+pfinal207_208 <- insert_yaxis_grob(pmain207_208, ydens207_208, 
+grid::unit(.2, "null"), position = "right")
+pfinal207_208 <- insert_xaxis_grob(pfinal207_208, xdens207_208, 
+grid::unit(.2, "null"), position = "top")
+
+ggdraw(pfinal207_208)
+```
+
+
+## Distribution of brooches
+
+```{r brooches-gg}
+g_bro_206_207 <- ggplot(origin, aes(Pb206_204, Pb207_204, color = origin)) +
+  facet_wrap(~ brooch) +
+  labs(color = "Origin") +
+  lab_206_207
+g_bro_206_208 <- ggplot(origin, aes(Pb206_204, Pb208_204, color = origin)) +
+  labs(color = "Origin") +
+  facet_wrap(~ brooch) +
+  lab_206_208
+g_bro_207_208 <- ggplot(origin, aes(Pb207_206, Pb208_206, color = origin)) +
+  labs(color = "Origin") +
+  facet_wrap(~ brooch) +
+  lab_207_208
+```
+
+```{r brooch-plots, fig.cap="Distribution of brooches and other artefact types in burials and Duchcov hoard"}
+g_bro_206_207 +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE)
+
+g_bro_206_208 +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE)
+
+g_bro_207_208 +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE)
+```
+
+# References
+
