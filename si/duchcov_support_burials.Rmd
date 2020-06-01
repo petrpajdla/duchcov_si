@@ -123,7 +123,7 @@ g_bur_207_208 + geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) 
   facet_wrap(~site)
 ```
 
-## Kernel density estimates
+## KDEs
 
 ```{r kde-burials, fig.cap="KDE of data from different burials overlayed with Duchcov hoard"}
 g_bur_206_207 +
@@ -277,6 +277,101 @@ g_bro_207_208 +
   geom_point() +
   stat_smooth(method = "lm", se = FALSE)
 ```
+
+# Addenda
+
+There is some evidence for ???
+
+```{r}
+composition_burials <- read_csv(here::here("data", "burial_grounds_compositions.csv")) %>% 
+  filter(site != "Duchcov")
+```
+
+```{r pca}
+# values are scaled to mean 0 and sd 1
+composition_burials <- scale(composition_burials[, elements])
+pc_comp <- prcomp(composition_burials)
+```
+
+```{r biplot}
+summary(pc_comp)
+plot_scree_clusters <- function(x) {
+  wss <- 0
+  max_i <- (nrow(x) - 1)/4
+  for (i in 1:max_i) {
+    km.model <- kmeans(x, centers = i, nstart = 20)
+    wss[i] <- km.model$tot.withinss
+  }
+  plot(1:max_i, wss, type = "b",
+       xlab = "Number of Clusters",
+       ylab = "Within groups sum of squares")
+}
+
+plot_scree_clusters(pc_comp$x[, 1:5])
+
+plot_sil_width <- function(x) {
+  sw <- 0
+  max_i <- (nrow(x) - 1)/4
+  for (i in 2:max_i) {
+    km.model <- cluster::pam(x = pc_comp$x, k = i)
+    sw[i] <- km.model$silinfo$avg.width
+  }
+  sw <- sw[-1]
+  plot(2:max_i, sw, type = "b",
+       xlab = "Number of Clusters",
+       ylab = "Average silhouette width")
+}
+
+plot_sil_width(pc_comp$x[, 1:5])
+
+
+cluster <- tibble(kmeans = kmeans(pc_comp$x[, 1:5], centers = 4, nstart = 50)$cluster) %>% 
+   mutate(kmeans = as_factor(kmeans))
+```
+
+
+```{r km-pca, fig.cap="K-means clusters in PCA space"}
+ggplot(as_tibble(pc_comp$x), aes(PC1, PC2, fill = cluster$kmeans)) +
+  geom_mark_hull(aes(color = cluster$kmeans), expand = unit(2.4, "mm")) +
+  geom_point(aes(shape = cluster$kmeans, color = cluster$kmeans)) +
+  scale_fill_brewer(palette = "Set1") + scale_color_brewer(palette = "Set1") +
+  labs(fill = "k-means\ncluster", color = "k-means\ncluster", shape = "k-means\ncluster")
+```
+
+```{r kmiso, fig.cap="K-means clusters in isospace"}
+burials_x <- bind_cols(burials, cluster) %>% 
+  filter(kmeans %in% c(1, 2))
+
+bur1 <- burials_x %>% 
+ggplot(aes(Pb206_204, Pb207_204)) +
+  stat_density2d(aes(color = kmeans, fill = kmeans, alpha = ..level..), 
+                 size = 0.6, show.legend = FALSE) +
+  geom_point(aes(color = kmeans), alpha = 0.6, size = 2) +
+  scale_color_brewer(aesthetics = c("color", "fill"), palette = "Set1", name = "Burials\ngroup") +
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 2) + 
+  labs(shape = "Duchcov\nK-means\ncluster") + lab_206_207
+
+bur2 <- burials_x %>% 
+ggplot(aes(Pb206_204, Pb208_204)) +
+  stat_density2d(aes(color = kmeans, fill = kmeans, alpha = ..level..), 
+                 size = 0.6, show.legend = FALSE) +
+  geom_point(aes(color = kmeans), alpha = 0.6, size = 2) +
+  scale_color_brewer(aesthetics = c("color", "fill"), palette = "Set1", name = "Burials\ngroup") +
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 2) + 
+  labs(shape = "Duchcov\nK-means\ncluster") + lab_206_208
+
+# burials_x %>% 
+# ggplot(aes(Pb207_206, Pb208_206)) +
+#   stat_density2d(aes(color = kmeans, fill = kmeans, alpha=..level..), 
+#                  size = 1, show.legend = FALSE) +
+#   geom_point(aes(color = kmeans), alpha = 0.6, size = 0.8, shape = 4) +
+#   scale_color_brewer(palette = "Set1", name = "Burials group") +
+#   scale_fill_brewer(palette = "Set1", name = "Burials group") +
+#   geom_point(data = isotopes, aes(shape = kmeans)) + 
+#   labs(shape = "K-means\ncluster") + lab_207_208
+```
+
+
 
 # References
 
