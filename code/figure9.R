@@ -69,17 +69,18 @@ f9B <- g_bur_206_208 +
   geom_point(data = duchcov, aes(shape = cluster_km), size = 1.4, alpha = 0.4) +
   facet_wrap(~site)
 
-f9C <- g_bur_207_208 +
-  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
-  scale_fill_gradient(low = "white", high = "black") +
-  scale_color_brewer(palette = "Set1") +
-  geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
-  geom_point(data = duchcov, aes(shape = cluster_km), size = 1.4, alpha = 0.4) +
-  facet_wrap(~site)
+# f9C <- g_bur_207_208 +
+#   stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
+#   scale_fill_gradient(low = "white", high = "black") +
+#   scale_color_brewer(palette = "Set1") +
+#   geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+#   geom_point(data = duchcov, aes(shape = cluster_km), size = 1.4, alpha = 0.4) +
+#   facet_wrap(~site)
 
 # pdf("./plots/final/fig9.pdf", width = 7, height = 14)
-f9 <- grid.arrange(f9A, f9B, f9C, nrow = 3)
+# f9 <- grid.arrange(f9A, f9B, f9C, nrow = 3)
+f9 <- grid.arrange(f9A, f9B, nrow = 2)
 # dev.off()
 
+# ggsave(here::here("plots", "FIG9.pdf"), plot = f9, device = "pdf", width = 190, height = 140, units = "mm", scale = 1)
 ggsave(here::here("plots", "FIG9.pdf"), plot = f9, device = "pdf", width = 190, height = 240, units = "mm", scale = 1)
-
