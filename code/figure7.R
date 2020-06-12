@@ -88,32 +88,67 @@ gg_207_208 <- gg_207_208 +
   guides(shape = guide_legend(ncol=1), color = guide_legend(ncol = 1)) +
   labs(shape = "K-means cluster", title = lab_C, color = "Region", fill = "Region")
 
-# plots
+# plots - two pages
+# f7A <- gg_206_207 +
+#   geom_point(alpha = 0.2, aes(color = Region2), show.legend = TRUE) +
+#   geom_mark_hull(aes(fill = Region2, color = Region2), expand = unit(2.4, "mm"),
+#                  alpha = 0.1, show.legend = FALSE) +
+#   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
+#   geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
+#   facet_wrap(~Region, ncol = 3)
+# 
+# f7B <- gg_206_208 +
+#   geom_point(alpha = 0.2, aes(color = Region2), show.legend = TRUE) +
+#   geom_mark_hull(aes(fill = Region2, color = Region2), expand = unit(2.4, "mm"),
+#                  alpha = 0.1, show.legend = FALSE) +
+#   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
+#   geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
+#   facet_wrap(~Region, ncol = 3)
+# 
+# f7C <- gg_207_208 +
+#   geom_point(alpha = 0.2, aes(color = Region2), show.legend = TRUE) +
+#   geom_mark_hull(aes(fill = Region2, color = Region2), expand = unit(2.4, "mm"),
+#                  alpha = 0.1, show.legend = FALSE) +
+#   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
+#   geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
+#   facet_wrap(~Region, ncol = 3)
+# 
+# f7ab <- grid.arrange(f7A, f7B,nrow = 2)
+# 
+# ggsave(here::here("plots", "FIG7_1.pdf"), plot = f7ab, device = "pdf", width = 190, height = 240, units = "mm", scale = 1)
+# ggsave(here::here("plots", "FIG7_2.pdf"), plot = f7C, device = "pdf", width = 190, height = 120, units = "mm", scale = 1)
+
+# plots - one page
 f7A <- gg_206_207 +
-  geom_point(alpha = 0.2, aes(color = Region2), show.legend = TRUE) +
+  geom_point(alpha = 0.2, aes(color = Region2), show.legend = FALSE, size = 0.8) +
   geom_mark_hull(aes(fill = Region2, color = Region2), expand = unit(2.4, "mm"),
                  alpha = 0.1, show.legend = FALSE) +
   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
-  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
-  facet_wrap(~Region, ncol = 3)
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6, show.legend = FALSE, size = 1) +
+  theme_light() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  facet_wrap(~Region, ncol = 5)
 
 f7B <- gg_206_208 +
-  geom_point(alpha = 0.2, aes(color = Region2), show.legend = TRUE) +
+  geom_point(alpha = 0.2, aes(color = Region2), show.legend = FALSE, size = 0.8) +
   geom_mark_hull(aes(fill = Region2, color = Region2), expand = unit(2.4, "mm"),
                  alpha = 0.1, show.legend = FALSE) +
   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
-  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
-  facet_wrap(~Region, ncol = 3)
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6, show.legend = FALSE, size = 1) +
+  theme_light() +
+  theme(axis.text.x = element_text(angle = 90)) +
+  facet_wrap(~Region, ncol = 5)
 
 f7C <- gg_207_208 +
-  geom_point(alpha = 0.2, aes(color = Region2), show.legend = TRUE) +
+  geom_point(alpha = 0.2, aes(color = Region2), show.legend = FALSE, size = 0.8) +
   geom_mark_hull(aes(fill = Region2, color = Region2), expand = unit(2.4, "mm"),
                  alpha = 0.1, show.legend = FALSE) +
   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
-  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
-  facet_wrap(~Region, ncol = 3)
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6, size = 1) +
+  guides(shape = guide_legend(ncol = 2)) +
+  theme_light() +
+  theme(legend.position = c(0.9, 0.1), axis.text.x = element_text(angle = 90)) +
+  facet_wrap(~Region, ncol = 5)
 
-f7ab <- grid.arrange(f7A, f7B,nrow = 2)
-
-ggsave(here::here("plots", "FIG7_1.pdf"), plot = f7ab, device = "pdf", width = 190, height = 240, units = "mm", scale = 1)
-ggsave(here::here("plots", "FIG7_2.pdf"), plot = f7C, device = "pdf", width = 190, height = 120, units = "mm", scale = 1)
+f7abc <- grid.arrange(f7A, f7B, f7C)
+ggsave(here::here("plots", "FIG7.pdf"), plot = f7abc, device = "pdf", width = 190, height = 240, units = "mm", scale = 1)

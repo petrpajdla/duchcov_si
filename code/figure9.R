@@ -38,20 +38,23 @@ lab_207_208 <- labs(x = expression(paste(""^207, "Pb/", ""^206, "Pb")),
 g_bur_206_207 <- ggplot(burials, aes(Pb206_204, Pb207_204)) +
   labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
   lab_206_207 +
-  theme(legend.position = c(0.84, 0.2)) +
+  theme_light() +
+  theme(legend.position = "none") +
   guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2))
 
 g_bur_206_208 <- ggplot(burials, aes(Pb206_204, Pb208_204)) +
   labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
   lab_206_208 +
+  theme_light() +
   theme(legend.position = c(0.84, 0.2)) +
   guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2))
 
-g_bur_207_208 <- ggplot(burials, aes(Pb207_206, Pb208_206)) +
-  labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
-  lab_207_208 +
-  theme(legend.position = c(0.84, 0.2)) +
-  guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2))
+# g_bur_207_208 <- ggplot(burials, aes(Pb207_206, Pb208_206)) +
+#   labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
+#   lab_207_208 +
+#   theme_light() +
+#   theme(legend.position = c(0.84, 0.2)) +
+#   guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2))
 
 f9A <- g_bur_206_207 +
   stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +

@@ -34,12 +34,14 @@ f6A <- ggplot(isotopes, aes(Pb206_204, Pb207_204)) +
   geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
   scale_color_brewer(palette = "Set1", name = "K-means\ncluster") +
   labs(shape = "K-means\ncluster", title = lab_A) + lab_206_207 +
+  theme_light() +
   theme(legend.position = "none")
 
 f6B <- ggplot(isotopes, aes(Pb206_204, Pb208_204)) +
   geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
   scale_color_brewer(palette = "Set1", name = "K-means\ncluster") +
   labs(shape = "K-means\ncluster", title = lab_B) + lab_206_208 +
+  theme_light() +
   theme(legend.position = "none")
 
 f6C <- ggplot(isotopes, aes(Pb207_206, Pb208_206)) +
@@ -47,6 +49,7 @@ f6C <- ggplot(isotopes, aes(Pb207_206, Pb208_206)) +
   scale_color_brewer(palette = "Set1", name = "K-means\ncluster") +
   labs(shape = "K-means\ncluster", title = lab_C) + lab_207_208 +
   guides(color = guide_legend(ncol = 2)) +
+  theme_light() +
   theme(legend.position = c(0.8, 0.24))
 
 f6 <- grid.arrange(f6A, f6B, f6C, ncol = 1)

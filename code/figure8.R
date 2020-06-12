@@ -120,6 +120,7 @@ f8A <- ggplot(euclidean_distance, aes(y = region, x = value, fill = region)) +
   facet_wrap(~kmeans, scales = "fixed") +
   labs(y = "Region", x = "ED (x axis limited to interval 0 - 1)",
        title = "(A) Euclidean distance") +
+  theme_light() +
   geom_point(data = ed_sum, aes(y = region, x = m), shape = 4, size = 1,
              show.legend = FALSE)
 
@@ -130,6 +131,7 @@ f8B <- ggplot(mahalanobis_distance, aes(y = region, x = value, fill = region)) +
   facet_wrap(~kmeans, scales = "fixed") +
   labs(y = "Region", x = "MD (x axis limited to interval 0 - 10)",
        title = "(B) Mahalanobis distance") +
+  theme_light() +
   geom_point(data = md_sum, aes(y = region, x = m), shape = 4, size = 1,
              show.legend = FALSE)
 

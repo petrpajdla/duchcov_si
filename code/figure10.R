@@ -1,125 +1,99 @@
-library(gridExtra)
-library(ggforce)
 library(tidyverse)
-library(cowplot)
+
+# data on Duchcov hoard
+# elements selected for further analysis
+elements <- c("Co", "Ni", "Zn", "As", "Ag", "Sb", "Pb")
 
 duchcov <- read_csv(here::here("data", "duchcov.csv"))
 
+cluster_d <- read_csv(here::here("data", "clusters.csv")) %>%
+  mutate(kmeans = factor(kmeans))
+
+isotopes <- duchcov %>%
+  select(id, starts_with("Pb2"))
+isotopes <- bind_cols(isotopes, cluster_d)
+
+# data on burials
 burials <- read_csv(here::here("data", "burial_grounds.csv"))
 
-duchcov$cluster_km <- read_csv(here::here("data", "clusters.csv")) %>%
-  mutate(kmeans = factor(kmeans)) %>%
-  dplyr::pull()
+composition_burials <- read_csv(here::here("data", "burial_grounds_compositions.csv")) %>% 
+  filter(site != "Duchcov")
 
-duchcov <- duchcov %>% mutate(brooch = if_else(str_detect(type_eng, "^brooch_"),
-                                               "brooch", "not brooch"),
-                              brooch = factor(brooch, levels = c("brooch", "not brooch")))
+# pca, scaling, kmeans
+composition_burials <- scale(composition_burials[, elements])
+pc_comp <- prcomp(composition_burials)
 
-burials <- burials %>% mutate(brooch = if_else(str_detect(type_eng, "brooch_"),
-                                               "brooch", "not brooch"),
-                              brooch = factor(brooch, levels = c("brooch", "not brooch")))
+cluster_b <- tibble(kmeans = kmeans(pc_comp$x[, 1:5], centers = 4, nstart = 50)$cluster) %>% 
+  mutate(kmeans = as_factor(kmeans))
 
-# lab_A <- expression(paste("(A) Isospace "^206, "Pb/", ""^204, "Pb to ", ""^207, "Pb/", ""^204, "Pb"))
-# lab_B <- expression(paste("(B) Isospace "^206, "Pb/", ""^204, "Pb to ", ""^208, "Pb/", ""^204, "Pb"))
-# lab_C <- expression(paste("(C) Isospace "^207, "Pb/", ""^206, "Pb to ", ""^208, "Pb/", ""^206, "Pb"))
-lab_A <- expression(paste("(A)"))
-lab_B <- expression(paste("(B)"))
-lab_C <- expression(paste("(C)"))
-
+# labs
 lab_206_207 <- labs(x = expression(paste(""^206, "Pb/", ""^204, "Pb")),
-                    y = expression(paste(""^207, "Pb/", ""^204, "Pb")), title = lab_A)
+                    y = expression(paste(""^207, "Pb/", ""^204, "Pb")))
 lab_206_208 <- labs(x = expression(paste(""^206, "Pb/", ""^204, "Pb")),
-                    y = expression(paste(""^208, "Pb/", ""^204, "Pb")), title = lab_B)
+                    y = expression(paste(""^208, "Pb/", ""^204, "Pb")))
 lab_207_208 <- labs(x = expression(paste(""^207, "Pb/", ""^206, "Pb")),
-                    y = expression(paste(""^208, "Pb/", ""^206, "Pb")), title = lab_C)
+                    y = expression(paste(""^208, "Pb/", ""^206, "Pb")))
 
-# Figure 10: Density distribution of burial finds and the Duchcov hoard. 
-origin <- bind_rows(duchcov = duchcov[, c("Pb207_204", "Pb206_204", 
-                                          "Pb208_204", "Pb208_206", 
-                                          "Pb207_206", "brooch")],
-                    burials = burials[, c("Pb207_204", "Pb206_204", 
-                                          "Pb208_204", "Pb208_206", 
-                                          "Pb207_206", "brooch")],
-                    .id = "origin")
+# plot
+rename_clusters <- function(cluster_b) {
+  cluster_b_tab <- cluster_b %>% count(kmeans) %>% 
+    mutate(group = if_else(n == 43, "B",
+                           if_else(n == 44, "A", NA_character_))) %>% 
+    select(kmeans, group)
+  cluster_b_lookup <- cluster_b_tab$group
+  names(cluster_b_lookup) <- cluster_b_tab$kmeans
+  cluster_b_out <- cluster_b %>% 
+    filter(kmeans %in% cluster_b_tab$kmeans) %>% 
+    mutate(kmeans = unname(cluster_b_lookup[as.character(kmeans)]))
+  return(cluster_b_out)
+}
 
-# 1
+burials_plot <- bind_cols(burials, rename_clusters(cluster_b)) %>% 
+  filter(!is.na(kmeans))
 
-pmain206_207 <- ggplot(origin, aes(Pb206_204, Pb207_204, color = origin)) +
-  stat_density2d(show.legend = FALSE, alpha = 0.4) +
-  geom_point(aes(shape = origin), size = 2, alpha = 0.4) +
-  scale_color_brewer(palette = "Set1") +
-  labs(color = "Origin", shape = "Origin") + lab_206_207 + theme(legend.position = "none")
+bur1 <- burials_plot %>% 
+  ggplot(aes(Pb206_204, Pb207_204)) +
+  stat_density2d(aes(color = kmeans, alpha = ..level..), 
+                 size = 0.6, show.legend = FALSE) +
+  geom_point(aes(color = kmeans), alpha = 0.6, size = 2) +
+  scale_color_brewer(aesthetics = c("color", "fill"), palette = "Set1", name = "Burials\ngroup") +
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 2, show.legend = FALSE) + 
+  labs(shape = "Duchcov\nK-means\ncluster", title = "(A)") + lab_206_207 +
+  theme_light()
 
-ydens206_207 <- axis_canvas(pmain206_207, axis = "y", coord_flip = TRUE) +
-  geom_density(data = origin, aes(x = Pb207_204, fill = origin),
-               alpha = 0.2, size = 0.2)+
-  coord_flip() +
-  scale_fill_brewer(palette = "Set1")
+# burials_plot %>% 
+#   ggplot(aes(Pb206_204, Pb207_204)) +
+#   stat_ellipse(aes(color = kmeans), level = 0.65) +
+#   geom_point(aes(color = kmeans), alpha = 0.6, size = 2) +
+#   scale_color_brewer(aesthetics = c("color", "fill"), palette = "Set1", name = "Burials\ngroup") +
+#   geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 2) + 
+#   labs(shape = "Duchcov\nK-means\ncluster") + lab_206_207
 
-xdens206_207 <- axis_canvas(pmain206_207, axis = "x", coord_flip = FALSE) +
-  geom_density(data = origin, aes(x = Pb206_204, fill = origin),
-               alpha = 0.2, size = 0.2) +
-  scale_fill_brewer(palette = "Set1")
+bur2 <- burials_plot %>% 
+  ggplot(aes(Pb206_204, Pb208_204)) +
+  stat_density2d(aes(color = kmeans, alpha = ..level..), 
+                 size = 0.6, show.legend = FALSE) +
+  geom_point(aes(color = kmeans), alpha = 0.6, size = 2, show.legend = FALSE) +
+  scale_color_brewer(aesthetics = c("color", "fill"), palette = "Set1", name = "Burials\ngroup") +
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 2) + 
+  labs(shape = "Duchcov\nK-means\ncluster", title = "(B)") + lab_206_208 +
+  theme_light()
 
-pfinal206_207 <- insert_yaxis_grob(pmain206_207, ydens206_207, 
-                                   grid::unit(.2, "null"), position = "right")
-pfinal206_207 <- insert_xaxis_grob(pfinal206_207, xdens206_207, 
-                                   grid::unit(.2, "null"), position = "top")
+# tweaking the legend position
+# cowplot
+legend1 <- cowplot::get_legend(bur1)
+legend2 <- cowplot::get_legend(bur2)
+bur1 <- bur1 + theme(legend.position="none")
+bur2 <- bur2 + theme(legend.position="none")
+# 4. Create a blank plot
+# blankPlot <- ggplot() +
+#   geom_blank(aes(1,1)) + 
+#   cowplot::theme_nothing()
 
-f10A <- ggdraw(pfinal206_207)
+fX <- gridExtra::grid.arrange(bur1, legend1, bur2, legend2, 
+                              nrow = 2, ncol = 2, 
+                              widths = c(0.8, 0.2))
 
-# 2
-pmain206_208 <- ggplot(origin, aes(Pb206_204, Pb208_204, color = origin)) +
-  stat_density2d(show.legend = FALSE, alpha = 0.4) +
-  geom_point(aes(shape = origin), size = 2, alpha = 0.4) +
-  scale_color_brewer(palette = "Set1") +
-  labs(color = "Origin", shape = "Origin") + lab_206_208  + theme(legend.position = "none")
+ggsave(here::here("plots", "FIG10.pdf"), plot = fX, width = 90, height = 160, units = "mm")
 
-ydens206_208 <- axis_canvas(pmain206_208, axis = "y", coord_flip = TRUE) +
-  geom_density(data = origin, aes(x = Pb208_204, fill = origin),
-               alpha = 0.2, size = 0.2)+
-  coord_flip() +
-  scale_fill_brewer(palette = "Set1")
 
-xdens206_208 <- axis_canvas(pmain206_208, axis = "x", coord_flip = FALSE) +
-  geom_density(data = origin, aes(x = Pb206_204, fill = origin),
-               alpha = 0.2, size = 0.2) +
-  scale_fill_brewer(palette = "Set1")
-
-pfinal206_208 <- insert_yaxis_grob(pmain206_208, ydens206_208, 
-                                   grid::unit(.2, "null"), position = "right")
-pfinal206_208 <- insert_xaxis_grob(pfinal206_208, xdens206_208, 
-                                   grid::unit(.2, "null"), position = "top")
-
-f10B <- ggdraw(pfinal206_208)
-
-# 3
-pmain207_208 <- ggplot(origin, aes(Pb207_206, Pb208_206, color = origin)) +
-  stat_density2d(show.legend = FALSE, alpha = 0.4) +
-  geom_point(aes(shape = origin), size = 2, alpha = 0.4) +
-  scale_color_brewer(palette = "Set1") +
-  labs(color = "Origin", shape = "Origin") + lab_207_208 + theme(legend.position = c(0.8, 0.24))
-
-ydens207_208 <- axis_canvas(pmain207_208, axis = "y", coord_flip = TRUE) +
-  geom_density(data = origin, aes(x = Pb208_206, fill = origin),
-               alpha = 0.2, size = 0.2)+
-  coord_flip() +
-  scale_fill_brewer(palette = "Set1")
-
-xdens207_208 <- axis_canvas(pmain207_208, axis = "x", coord_flip = FALSE) +
-  geom_density(data = origin, aes(x = Pb207_206, fill = origin),
-               alpha = 0.2, size = 0.2) +
-  scale_fill_brewer(palette = "Set1")
-
-pfinal207_208 <- insert_yaxis_grob(pmain207_208, ydens207_208, 
-                                   grid::unit(.2, "null"), position = "right")
-pfinal207_208 <- insert_xaxis_grob(pfinal207_208, xdens207_208, 
-                                   grid::unit(.2, "null"), position = "top")
-
-f10C <- ggdraw(pfinal207_208)
-
-# pdf("./plots/final/fig10.pdf", width = 15, height = 4)
-f10 <- grid.arrange(f10A, f10B, f10C, ncol = 1)
-# dev.off()
-
-ggsave(here::here("plots", "FIG10.pdf"), plot = f10, device = "pdf", width = 90, height = 240, units = "mm")
