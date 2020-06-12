@@ -125,7 +125,7 @@ f7A <- gg_206_207 +
                  alpha = 0.1, show.legend = FALSE) +
   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
   geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6, show.legend = FALSE, size = 1) +
-  theme_light() +
+  theme_gray() +
   theme(axis.text.x = element_text(angle = 90)) +
   facet_wrap(~Region, ncol = 5)
 
@@ -135,7 +135,7 @@ f7B <- gg_206_208 +
                  alpha = 0.1, show.legend = FALSE) +
   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
   geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6, show.legend = FALSE, size = 1) +
-  theme_light() +
+  theme_gray() +
   theme(axis.text.x = element_text(angle = 90)) +
   facet_wrap(~Region, ncol = 5)
 
@@ -146,7 +146,7 @@ f7C <- gg_207_208 +
   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
   geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6, size = 1) +
   guides(shape = guide_legend(ncol = 2)) +
-  theme_light() +
+  theme_gray() +
   theme(legend.position = c(0.9, 0.1), axis.text.x = element_text(angle = 90)) +
   facet_wrap(~Region, ncol = 5)
 

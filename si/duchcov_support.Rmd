@@ -1,5 +1,5 @@
 ---
-title: "Duchcov hoard: SI Clustering and Ore Sources"
+title: "Duchcov hoard: Supporting Information"
 author: "Alžběta Danielisová, Petr Pajdla"
 date: "`r format(Sys.time(), '%d %B, %Y')`"
 output:
@@ -17,13 +17,11 @@ csl: journal-of-archaeological-science.csl
 
 # Introduction
 
-The purpose of this supplementary file is to reproduce data analysis
-of artefact compositions and isotopic signals of objects from the
-Duchcov hoard from the article *Exceptional ritual or a production deposit?* 
-*The Duchcov hoard (Bohemia) as a proxy to ´Celtic migrations´ in the 4th century BC*.
+Supporting information accompanying the article:
 
-`R` version 3.6.3 was used [@rct2020] to run the analysis.
-Following `R` packages are used:
+> Claiming of land or a production deposit? The Duchcov hoard in Bohemia as a proxy for "Celtic migrations" in Europe in the 4 th century BC
+
+`R` version 3.6.3 was used [@rct2020] with the following packages:
 `tidyverse` family of packages [@wickham2019],
 `ggforce` [@pedersen2019],
 `ggbiplot` [@vu2011],
@@ -34,8 +32,15 @@ Following `R` packages are used:
 `MASS` [@venables2002],
 `cowplot` [@wilke2019],
 `corrplot` [@corrplot2017],
-`knitr` [@knitr], `DT` [@DT], `bookdown` [@bookdown], 
+`knitr` [@knitr], `DT` [@DT], `bookdown` [@bookdown],
 `grid` [@rct2020], `gridExtra` [@gridE], `here`[@here].
+
+Most of the data is enclosed as comma separated values (CSV) files.
+The only source that is not shared is the data consisting of lead isotope signals
+for different ore sources because it was collected from various sources including
+not published material.
+
+Plots and/or tables included in the text of the article are not shown here.
 
 ```{r setup}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, fig.align = "center")
@@ -62,16 +67,16 @@ rownames(composition) <- duchcov$id
 # elements selected for PCA and further analyses
 elements <- c("Co", "Ni", "Zn", "As", "Ag", "Sb", "Pb")
 
-DT::datatable(composition[, elements], caption = "Compositions table")
+# DT::datatable(composition[, elements], caption = "Compositions table")
 ```
 
 Only `r paste(elements, sep = ", ")` element compositions of `r nrow(composition)`
 analyzed artefacts from Duchcov hoard were used for the analyses.
 
-```{r corrplot}
-corrplot::corrplot(cor(composition[, elements]),
-                   type = "upper", diag = FALSE,
-                   order = "hclust", method = "pie")
+```{r corrplot, fig.cap="Corrplot"}
+# corrplot::corrplot(cor(composition[, elements]),
+#                    type = "upper", diag = FALSE,
+#                    order = "hclust", method = "pie")
 ```
 
 ```{r pca}
@@ -94,7 +99,6 @@ summary(pc_comp)
 ```{r}
 rm(list = c("composition_biplot"))
 ```
-
 
 ## Grouping in the compositions
 
@@ -133,13 +137,12 @@ plot_sil_width <- function(x) {
 plot_sil_width(pc_comp$x[, 1:5])
 ```
 
-
 ```{r kmeans}
 # ------------------------------------------------------------------------------
-# please note: to avoid confusion in changes in k-means cluster numbers/colors
+# please note: to avoid confusion in changes in k-means cluster numbers/colors/shapes
 # the cluster assignment was hardcoded in a csv file 'clusters.csv'
 # ------------------------------------------------------------------------------
-# cluster <- tibble(kmeans = kmeans(pc_comp$x[, 1:5], centers = 4, nstart = 50)$cluster) %>% 
+# cluster <- tibble(kmeans = kmeans(pc_comp$x[, 1:5], centers = 4, nstart = 50)$cluster) %>%
 #   mutate(kmeans = as_factor(kmeans))
 # write_csv(cluster, here::here("data", "clusters.csv")))
 cluster <- read_csv(here::here("data", "clusters.csv")) %>%
@@ -147,11 +150,11 @@ cluster <- read_csv(here::here("data", "clusters.csv")) %>%
 ```
 
 ```{r km-pca, fig.cap="K-means clusters in PCA space"}
-ggplot(as_tibble(pc_comp$x), aes(PC1, PC2, fill = cluster$kmeans)) +
-  geom_mark_hull(aes(color = cluster$kmeans), expand = unit(2.4, "mm")) +
-  geom_point(aes(shape = cluster$kmeans, color = cluster$kmeans)) +
-  scale_fill_brewer(palette = "Set1") + scale_color_brewer(palette = "Set1") +
-  labs(fill = "k-means\ncluster", color = "k-means\ncluster", shape = "k-means\ncluster")
+# ggplot(as_tibble(pc_comp$x), aes(PC1, PC2, fill = cluster$kmeans)) +
+#   geom_mark_hull(aes(color = cluster$kmeans), expand = unit(2.4, "mm")) +
+#   geom_point(aes(shape = cluster$kmeans, color = cluster$kmeans)) +
+#   scale_fill_brewer(palette = "Set1") + scale_color_brewer(palette = "Set1") +
+#   labs(fill = "k-means\ncluster", color = "k-means\ncluster", shape = "k-means\ncluster")
 ```
 
 Mean values for different element compositions in the clusters 1 to 4:
@@ -162,12 +165,8 @@ km_elements <- as_tibble(cbind(composition[, elements], cluster)) %>%
   summarize_all(mean) %>%
   mutate_at(vars(-kmeans), round, 4)
 
-knitr::kable(km_elements, 
+knitr::kable(km_elements,
              rownames = FALSE, caption = "Mean values for element compositions")
-```
-
-```{r}
-rm(list = c("km_elements"))
 ```
 
 # Lead isotopes
@@ -178,7 +177,7 @@ isotopes <- duchcov %>%
 
 isotopes <- bind_cols(isotopes, cluster)
 
-DT::datatable(isotopes, rownames = FALSE)
+# DT::datatable(isotopes, rownames = FALSE)
 ```
 
 ```{r labels}
@@ -190,22 +189,21 @@ lab_207_208 <- labs(x = expression(paste(""^207, "Pb/", ""^206, "Pb")),
                     y = expression(paste(""^208, "Pb/", ""^206, "Pb")))
 ```
 
-
 ```{r kmiso, fig.cap="K-means clusters in isospace"}
-ggplot(isotopes, aes(Pb206_204, Pb207_204)) +
-  geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
-  scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
-  labs(shape = "k-means\ncluster") + lab_206_207
-
-ggplot(isotopes, aes(Pb206_204, Pb208_204)) +
-  geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
-  scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
-  labs(shape = "k-means\ncluster") + lab_206_208
-
-ggplot(isotopes, aes(Pb207_206, Pb208_206)) +
-  geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
-  scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
-  labs(shape = "k-means\ncluster") + lab_207_208
+# ggplot(isotopes, aes(Pb206_204, Pb207_204)) +
+#   geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
+#   scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
+#   labs(shape = "k-means\ncluster") + lab_206_207
+# 
+# ggplot(isotopes, aes(Pb206_204, Pb208_204)) +
+#   geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
+#   scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
+#   labs(shape = "k-means\ncluster") + lab_206_208
+# 
+# ggplot(isotopes, aes(Pb207_206, Pb208_206)) +
+#   geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
+#   scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
+#   labs(shape = "k-means\ncluster") + lab_207_208
 ```
 
 ```{r}
@@ -214,20 +212,20 @@ rm(list = c("plot_scree_clusters", "plot_sil_width"))
 
 # Ore sources
 
-Here we compare the distributions of Duchcov k-means clusters with distributions
-of known sources based on lead isotopes.
+Here we compare the distributions of Duchcov K-means clusters with distributions
+of known sources based on lead isotope signals.
 
 ```{r data-sources}
 sources <- read_csv(here::here("data", "ore_sources.csv")) %>%
   mutate(Region = factor(Region,
                          levels = c("Valais", "Rheinland", "Saarland",
                                     "Rammelsberg & Harz",
-                                    "E Alps", "SE Alps", "Erzgebirge", 
+                                    "E Alps", "SE Alps", "Erzgebirge",
                                     "Slovakia", "E Carpathians")),
          Region2 = factor(Region2,
                           levels = c("Valais", "Rheinland", "Saarland",
                                      "Rammelsberg", "Harz",
-                                     "E Alps", "SE Alps", "Erzgebirge", 
+                                     "E Alps", "SE Alps", "Erzgebirge",
                                      "Slovakia", "E Carpathians")))
 
 # frame margins of further plots
@@ -244,6 +242,8 @@ dist_duchcov$Pb208y$max <-  max(isotopes$Pb208_206, na.rm = TRUE)
 dist_duchcov$Pb207x$min <-  min(isotopes$Pb207_206, na.rm = TRUE)
 dist_duchcov$Pb207x$max <-  max(isotopes$Pb207_206, na.rm = TRUE)
 ```
+
+## Outliers
 
 Points removed as outliers are highlighted in red in the following figures.
 Outliers are defined as points lying further than 2 interquartile ranges from the upper quartile of
@@ -287,6 +287,8 @@ gg_207_208 <- ggplot(sources, aes(Pb207_206, Pb208_206)) +
   lab_207_208
 ```
 
+## Data distribution in isospaces
+
 Overall view of distributions of lead isotope values.
 
 ```{r isospaces-full, fig.cap="Ore sources overlayed with Duchcov hoard data"}
@@ -316,30 +318,32 @@ gg_207_208 +
 ```
 
 ```{r limited-gg-sources}
-gg_206_207 <- gg_206_207 + 
+gg_206_207 <- gg_206_207 +
   coord_cartesian(xlim = c(dist_duchcov$Pb206x$min, dist_duchcov$Pb206x$max),
                   ylim = c(dist_duchcov$Pb207y$min, dist_duchcov$Pb207y$max)) +
   guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2)) +
   labs(shape = "K-means cluster")
 
-gg_206_208 <- gg_206_208 + 
+gg_206_208 <- gg_206_208 +
   coord_cartesian(xlim = c(dist_duchcov$Pb206x$min, dist_duchcov$Pb206x$max),
                   ylim = c(dist_duchcov$Pb208_204y$min, dist_duchcov$Pb208_204y$max)) +
   guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2)) +
   labs(shape = "K-means cluster")
 
-gg_207_208 <- gg_207_208 + 
+gg_207_208 <- gg_207_208 +
   coord_cartesian(xlim = c(dist_duchcov$Pb207x$min, dist_duchcov$Pb207x$max),
                   ylim = c(dist_duchcov$Pb208y$min, dist_duchcov$Pb208y$max)) +
   guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2)) +
   labs(shape = "K-means cluster")
 ```
 
+## Concave hulls
+
 Several visual methods are explored in order to determine whether the lead isotopic
 signal from Duchcov hoard objects grouped by k-means clustering correspond to
 known sources.
 At first, *areas* corresponding to lead isotope signals from different geographic regions are
-constructed in isospaces using concave hulls [@gombin2017, concaveman algorithm] of the point distributions 
+constructed in isospaces using concave hulls [@gombin2017, concaveman algorithm] of the point distributions
 for given geographic regions.
 
 ```{r sources-chull, fig.width = 10, fig.cap="Detail of ore sources highlighted using concave hulls overlayed with Duchcov data"}
@@ -350,7 +354,7 @@ for given geographic regions.
 #   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
 #   geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
 #   facet_wrap(~Region)
-# 
+#
 # gg_206_208 +
 #   geom_point(alpha = 0.2, aes(color = Region2), show.legend = FALSE) +
 #   geom_mark_hull(aes(fill = Region2, color = Region2), expand = unit(2.4, "mm"),
@@ -358,7 +362,7 @@ for given geographic regions.
 #   scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
 #   geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
 #   facet_wrap(~Region)
-# 
+#
 # gg_207_208 +
 #   geom_point(alpha = 0.2, aes(color = Region2), show.legend = FALSE) +
 #   geom_mark_hull(aes(fill = Region2, color = Region2), expand = unit(2.4, "mm"),
@@ -368,13 +372,16 @@ for given geographic regions.
 #   facet_wrap(~Region)
 ```
 
+## Kernel density estimation
+
 Kernel density estimation for each of the source regions helps in identifying to
 what extent the point distribution of Duchcov hoard objects fits the density
 distribution in given regions. `kde2d` algorithm of `MASS` package is used [@venables2002].
 
 ```{r sources-kde, fig.width = 10, fig.cap="Kernel density estimation of ore sources"}
 gg_206_207 +
-  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
+  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon",
+                 alpha = 0.2, show.legend = FALSE) +
   scale_fill_gradient(low = "white", high = "black") +
   geom_point(alpha = 0.2, size = 0.2, color = "black") +
   geom_point(data = isotopes, aes(shape = kmeans, color = kmeans)) +
@@ -382,7 +389,8 @@ gg_206_207 +
   facet_wrap(~ Region)
 
 gg_206_208 +
-  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
+  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon",
+                 alpha = 0.2, show.legend = FALSE) +
   scale_fill_gradient(low = "white", high = "black") +
   geom_point(alpha = 0.2, size = 0.2, color = "black") +
   geom_point(data = isotopes, aes(shape = kmeans, color = kmeans)) +
@@ -390,7 +398,8 @@ gg_206_208 +
   facet_wrap(~ Region)
 
 gg_207_208 +
-  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
+  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon",
+                 alpha = 0.2, show.legend = FALSE) +
   scale_fill_gradient(low = "white", high = "black") +
   geom_point(alpha = 0.2, size = 0.2, color = "black") +
   geom_point(data = isotopes, aes(shape = kmeans, color = kmeans)) +
@@ -402,21 +411,21 @@ gg_207_208 +
 rm(list = c("dist_duchcov"))
 ```
 
-## Euclidean distances
+## Euclidean distance
 
-Euclidean distance between all the points in given geographic region and k-means clusters
+Euclidean distance between all the points in given geographic region and K-means clusters
 from Duchcov hoard is used as one of the proxies to identify possible sources
 of the lead isotope ratios $^{208}Pb/^{204}Pb$, $^{207}Pb/^{204}Pb$, $^{206}Pb/^{204}Pb$,
 $^{208}Pb/^{206}Pb$ and $^{207}Pb/^{206}Pb$.
 
 The problem with using Euclidean distances is that the multivariate *shape* of the data distribution is
-not taken into account, thus Mahalanobis distance (see further) seems as a better fit 
+not taken into account, thus Mahalanobis distance (see further) seems as a better fit
 for the task, even though Euclidean distances are commonly used [e.g. @ling2014].
 
 ```{r distance-function}
 nest_matrix <- function(df, gr) {
   output <- df %>% group_by(!!sym(gr)) %>%
-    nest() %>% 
+    nest() %>%
     mutate(mx = map(data, as.matrix))
   return(output)
 }
@@ -458,14 +467,13 @@ point_cloud_distance <- function(origin, goal, group_origin, group_goal, method)
 }
 ```
 
-
 ```{r euclidean-distance}
 src <- sources %>% select(Region2, starts_with("Pb"))
 iso <- isotopes %>% select(kmeans, starts_with("Pb")) %>% na.omit()
 
-euclidean_distance <- point_cloud_distance(origin = src, goal = iso, 
+euclidean_distance <- point_cloud_distance(origin = src, goal = iso,
                                            group_origin = "Region2", group_goal = "kmeans",
-                                           method = "euclidean") %>% 
+                                           method = "euclidean") %>%
   mutate(region = fct_relevel(region, levels(sources$Region2)))
 ```
 
@@ -479,15 +487,15 @@ euclidean_distance <- point_cloud_distance(origin = src, goal = iso,
 #        x = "Euclidean distance to a given Duchcov K-means cluster (x axis limited to interval 0 - 1)")
 ```
 
-## Mahalanobis distances
+## Mahalanobis distance
 
 Mahalanobis distance is used as a metric to compare points fit in a given source distribution.
 The scale differences and effects of correlation between the variables are removed in case of Mahalanobis distance.
 
 ```{r mahalanobis-distance}
-mahalanobis_distance <- point_cloud_distance(origin = src, goal = iso, 
+mahalanobis_distance <- point_cloud_distance(origin = src, goal = iso,
                                              group_origin = "Region2", group_goal = "kmeans",
-                                             method = "mahalanobis") %>% 
+                                             method = "mahalanobis") %>%
   mutate(region = fct_relevel(region, levels(sources$Region2)))
 ```
 
@@ -508,7 +516,9 @@ rm(list = c("iso", "src", "nest_matrix", "point_cloud_distance"))
 
 ## Discriminant analysis
 
-Manova is used in order to determine whether there are significant differences
+### MANOVA
+
+Multivariate analysis of variance is used in order to determine whether there are significant differences
 between group means for the distinct regions.
 
 ```{r lm}
@@ -523,23 +533,25 @@ summary(manova(sources_lm), test = "Pillai")
 # summary(manova(sources_lm), test = "Hotelling-Lawley")
 ```
 
+### LDA
+
 Linear discriminant analysis is then used to separate the regions.
 
 ```{r lda}
 n_levels_sources <- length(levels(sources$Region2))
 
-sources_lda <- MASS::lda(Region2 ~ ., sources[, c("Region2", 
-                                                  "Pb207_206", "Pb208_206", 
+sources_lda <- MASS::lda(Region2 ~ ., sources[, c("Region2",
+                                                  "Pb207_206", "Pb208_206",
                                                   "Pb206_204", "Pb207_204", "Pb208_204")],
                          prior = as.double(
                            paste(
-                             rep(1/n_levels_sources, 
+                             rep(1/n_levels_sources,
                                  n_levels_sources), sep = ",")))
 sources_lda
 ```
 
 Using the LDA to predict the regions of original points, we get a lot of error, see the confusion matrix below.
-How to read it: rows are the regions the point is from and columns are regions predicted
+*How to read it:* rows are the regions the point is from and columns are regions predicted
 based on the LDA.
 
 ```{r confusion-matrix}
@@ -547,78 +559,324 @@ sources_pred <- predict(sources_lda)
 prediction <- with(sources_pred, data.frame(Region = sources$Region2,
                                             Predict = class, round(posterior, 2)))
 
-knitr::kable(addmargins(xtabs(~fct_drop(Region) + fct_drop(Predict), prediction)), 
+knitr::kable(addmargins(xtabs(~fct_drop(Region) + fct_drop(Predict), prediction)),
              caption = "Confusion matrix")
 
 # overall success of the model in predicting correct region
 round(mean(prediction$Region == prediction$Predict), 2)
-
-# individual correct predictions (diagonal)
-round(prop.table(table(droplevels(prediction$Region),
-                       droplevels(prediction$Predict)),
-                 margin = 1), 2)
 ```
 
-Prediction of Regions based on data on points from Duchcov hoard.
+```{r indiv-predictions}
+# individual correct predictions (diagonal)
+knitr::kable(round(prop.table(table(droplevels(prediction$Region),
+                                    droplevels(prediction$Predict)),
+                              margin = 1), 2),
+             caption = "Individual correct predictions")
+```
 
-```{r duchcov-prediction}
+Prediction of Regions for Duchcov hoard.
+
+```{r duchcov-prediction-tab, fig.cap="Posterior probabilities for predicted sources"}
 duchcov_prediction <- predict(object = sources_lda, newdata = isotopes[, -7])
 duchcov_prediction_df <- with(duchcov_prediction,
                               data.frame(id = isotopes[, "id"],
                                          kmeans = isotopes[, "kmeans"],
                                          predicted_region = class,
-                                         round(posterior, 2)))
+                                         round(posterior, 2))) %>% 
+  as_tibble()
+
 
 # posterior probabilities of individual predictions
 DT::datatable(duchcov_prediction_df,
-              caption = "Posterior probabilities of predicted sources")
+              caption = "Posterior probabilities for predicted sources",
+              rownames = FALSE,
+              options = list(scrollX = TRUE, scrollY = TRUE))
 
-duchcov_prediction_df %>% 
-  select(-predicted_region) %>% 
-  gather(key = "region", value = "probability", -id, -kmeans) %>% 
-  group_by(kmeans, region) %>% 
-  dplyr::summarize(mean_prob = mean(probability, na.rm = TRUE)) %>% 
-  ggplot(aes(x = region, y = mean_prob)) +
-  geom_col(fill = "white", col = "black") +
-  facet_wrap(~kmeans, ncol = 1) +
-  labs(x = "Region", y = "Mean posterior probability")
 ```
+
+```{r duchcov-prediction-fig, fig.cap="Mean posterior probabilities for different K-means clusters"}
+# duchcov_prediction_df %>%
+#   select(-predicted_region) %>%
+#   gather(key = "region", value = "probability", -id, -kmeans) %>%
+#   group_by(kmeans, region) %>%
+#   dplyr::summarize(mean_prob = mean(probability, na.rm = TRUE)) %>%
+#   ggplot(aes(x = region, y = mean_prob)) +
+#   geom_col(fill = "white", col = "black") +
+#   facet_wrap(~kmeans, ncol = 1) +
+#   labs(x = "Region", y = "Mean posterior probability")
+```
+
+<!--
+```{r write-mean-prob}
+duchcov_prediction_df %>%
+  select(-predicted_region) %>%
+  gather(key = "region", value = "probability", -id, -kmeans) %>%
+  group_by(kmeans, region) %>%
+  dplyr::summarize(mean_prob = mean(probability, na.rm = TRUE)) %>% 
+  tidyr::spread(key = kmeans, value = mean_prob) %>% 
+  mutate(across(where(is.numeric), round, 3)) %>% 
+  write_excel_csv(here::here("data", "mean_probability.csv"))
+```
+-->
 
 ```{r duchcov-prediction-counts}
 # matrix of counts of points in individual k-means clusters (rows)
 # fitting to various regions (columns)
 knitr::kable(addmargins(xtabs(~kmeans + fct_drop(predicted_region),
-                              duchcov_prediction_df)), 
-             caption = "Counts of points per different sources")
+                              duchcov_prediction_df)),
+             caption = "Numbers of data points from different K-means clusters per different sources ")
 ```
 
+<!--
 ```{r predicted-mapped, fig.cap="Source regions as assigned to Duchcov k-means clusters (numeric labels) by LDA"}
 ggplot(isotopes, aes(Pb206_204, Pb207_204, label = kmeans)) +
-  geom_text(aes(color = duchcov_prediction_df$predicted_region, 
+  geom_text(aes(color = duchcov_prediction_df$predicted_region,
                 shape = duchcov_prediction_df$predicted_region)) +
   scale_color_brewer(palette = "Set1", name = "predicted\nregion") +
   labs(shape = "predicted\nregion") + lab_206_207
 
 ggplot(isotopes, aes(Pb206_204, Pb208_204, label = kmeans)) +
-  geom_text(aes(color = duchcov_prediction_df$predicted_region, 
+  geom_text(aes(color = duchcov_prediction_df$predicted_region,
                 shape = duchcov_prediction_df$predicted_region)) +
   scale_color_brewer(palette = "Set1", name = "predicted\nregion") +
   labs(shape = "predicted\nregion") + lab_206_208
 
 ggplot(isotopes, aes(Pb207_206, Pb208_206, label = kmeans)) +
-  geom_text(aes(color = duchcov_prediction_df$predicted_region, 
+  geom_text(aes(color = duchcov_prediction_df$predicted_region,
                 shape = duchcov_prediction_df$predicted_region)) +
   scale_color_brewer(palette = "Set1", name = "predicted\nregion") +
   labs(shape = "predicted\nregion") + lab_207_208
 ```
+-->
 
-<!-- ```{r clean-envir} -->
-<!-- rm(list = c("med_d_all", "med_d_regions",  -->
-<!--             "euclidean_distance", "mahalanobis_distance", -->
-<!--             "filtered_regions", "sources_subset",  -->
-<!--             "sources_lm", "sources_lda", "sources_pred", -->
-<!--             "n_levels_sources", "prediction", -->
-<!--             "duchcov_prediction", "duchcov_prediction_df")) -->
-<!-- ``` -->
+```{r clean-envir}
+rm(list = c("med_d_all", "med_d_regions",
+            "euclidean_distance", "mahalanobis_distance",
+            "filtered_regions", "sources_subset",
+            "sources_lm", "sources_lda", "sources_pred",
+            "n_levels_sources", "prediction",
+            "duchcov_prediction", "duchcov_prediction_df"))
+```
+
+# Comparison with burials
+
+```{r data-burials}
+burials <- read_csv(here::here("data", "burial_grounds.csv"))
+```
+
+In this part of SI the artefacts from burial grounds are compared with items from the Duchcov 
+hoard in terms of their composition and lead isotopes.
+
+```{r brooch}
+duchcov <- duchcov %>% 
+  transmute(brooch = if_else(str_detect(type_eng, "^brooch_"),
+                             "brooch", "not brooch"),
+            brooch = factor(brooch, levels = c("brooch", "not brooch")),
+            id = id) %>%
+  left_join(isotopes)
+
+burials <- burials %>% mutate(brooch = if_else(str_detect(type_eng, "brooch_"),
+                                               "brooch", "not brooch"),
+                              brooch = factor(brooch, levels = c("brooch", "not brooch"))) %>% 
+  select(-type_eng)
+```
+
+```{r burials-gg}
+g_bur_206_207 <- ggplot(burials, aes(Pb206_204, Pb207_204)) +
+  labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
+  lab_206_207 +
+  theme(legend.position = c(0.84, 0.2)) +
+  guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2))
+g_bur_206_208 <- ggplot(burials, aes(Pb206_204, Pb208_204)) +
+  labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
+  lab_206_208 +
+  theme(legend.position = c(0.84, 0.2)) +
+  guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2))
+g_bur_207_208 <- ggplot(burials, aes(Pb207_206, Pb208_206)) +
+  labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
+  lab_207_208 +
+  theme(legend.position = c(0.84, 0.2)) +
+  guides(shape = guide_legend(ncol=2), color = guide_legend(ncol = 2))
+```
+
+## Convex hulls
+
+```{r burials, fig.cap="Distribution of data from different burials (LTB1 horizon) overlayed with Duchcov hoard"}
+g_bur_206_207 + geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_mark_hull(aes(color = site, fill = site), expand = unit(2.4, "mm"),
+                 alpha = 0.1, show.legend = FALSE) +
+  scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
+  geom_point(data = duchcov, aes(shape = kmeans), size = 2, alpha = 0.4) +
+  facet_wrap(~site)
+
+g_bur_206_208 + geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_mark_hull(aes(color = site, fill = site), expand = unit(2.4, "mm"),
+                 alpha = 0.1, show.legend = FALSE) +
+  scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
+  geom_point(data = duchcov, aes(shape = kmeans), size = 2, alpha = 0.4) +
+  facet_wrap(~site)
+
+g_bur_207_208 + geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_mark_hull(aes(color = site, fill = site), expand = unit(2.4, "mm"),
+                 alpha = 0.1, show.legend = FALSE) +
+  scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
+  geom_point(data = duchcov, aes(shape = kmeans), size = 2, alpha = 0.4) +
+  facet_wrap(~site)
+```
+
+## KDE
+
+```{r kde-burials, fig.cap="KDE of data from different burials overlayed with Duchcov hoard"}
+# g_bur_206_207 +
+#   stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
+#   scale_fill_gradient(low = "white", high = "black") +
+#   scale_color_brewer(palette = "Set1") +
+#   geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+#   geom_point(data = duchcov, aes(shape = kmeans), size = 1.4, alpha = 0.4) +
+#   facet_wrap(~site)
+# 
+# g_bur_206_208 +
+#   stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
+#   scale_fill_gradient(low = "white", high = "black") +
+#   scale_color_brewer(palette = "Set1") +
+#   geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+#   geom_point(data = duchcov, aes(shape = kmeans), size = 1.4, alpha = 0.4) +
+#   facet_wrap(~site)
+# 
+# g_bur_207_208 +
+#   stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, show.legend = FALSE) +
+#   scale_fill_gradient(low = "white", high = "black") +
+#   scale_color_brewer(palette = "Set1") +
+#   geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+#   geom_point(data = duchcov, aes(shape = kmeans), size = 1.4, alpha = 0.4) +
+#   facet_wrap(~site)
+```
+
+## Density distributions
+
+```{r}
+library(cowplot)
+```
+
+```{r bind-duchcov-burials}
+origin <- bind_rows(duchcov = duchcov[, c("Pb207_204", "Pb206_204", 
+                                          "Pb208_204", "Pb208_206", 
+                                          "Pb207_206", "brooch")],
+                    burials = burials[, c("Pb207_204", "Pb206_204", 
+                                          "Pb208_204", "Pb208_206", 
+                                          "Pb207_206", "brooch")],
+                    .id = "origin")
+```
+
+```{r density206-207, fig.cap="Density distribution of burial finds and Duchcov hoard"}
+pmain206_207 <- ggplot(origin, aes(Pb206_204, Pb207_204, color = origin)) +
+stat_density2d(show.legend = FALSE, alpha = 0.4) +
+geom_point(size = 2, alpha = 0.4) +
+scale_color_brewer(palette = "Set1") +
+labs(color = "Origin") + lab_206_207
+
+ydens206_207 <- axis_canvas(pmain206_207, axis = "y", coord_flip = TRUE) +
+geom_density(data = origin, aes(x = Pb207_204, fill = origin),
+alpha = 0.2, size = 0.2)+
+coord_flip() +
+scale_fill_brewer(palette = "Set1")
+
+xdens206_207 <- axis_canvas(pmain206_207, axis = "x", coord_flip = FALSE) +
+geom_density(data = origin, aes(x = Pb206_204, fill = origin),
+alpha = 0.2, size = 0.2) +
+scale_fill_brewer(palette = "Set1")
+
+pfinal206_207 <- insert_yaxis_grob(pmain206_207, ydens206_207, 
+grid::unit(.2, "null"), position = "right")
+pfinal206_207 <- insert_xaxis_grob(pfinal206_207, xdens206_207, 
+grid::unit(.2, "null"), position = "top")
+
+ggdraw(pfinal206_207)
+```
+
+```{r density206-208, fig.cap="Density distribution of burial finds and Duchcov hoard"}
+pmain206_208 <- ggplot(origin, aes(Pb206_204, Pb208_204, color = origin)) +
+stat_density2d(show.legend = FALSE, alpha = 0.4) +
+geom_point(size = 2, alpha = 0.4) +
+scale_color_brewer(palette = "Set1") +
+labs(color = "Origin") + lab_206_208
+
+ydens206_208 <- axis_canvas(pmain206_208, axis = "y", coord_flip = TRUE) +
+geom_density(data = origin, aes(x = Pb208_204, fill = origin),
+alpha = 0.2, size = 0.2)+
+coord_flip() +
+scale_fill_brewer(palette = "Set1")
+
+xdens206_208 <- axis_canvas(pmain206_208, axis = "x", coord_flip = FALSE) +
+geom_density(data = origin, aes(x = Pb206_204, fill = origin),
+alpha = 0.2, size = 0.2) +
+scale_fill_brewer(palette = "Set1")
+
+pfinal206_208 <- insert_yaxis_grob(pmain206_208, ydens206_208, 
+grid::unit(.2, "null"), position = "right")
+pfinal206_208 <- insert_xaxis_grob(pfinal206_208, xdens206_208, 
+grid::unit(.2, "null"), position = "top")
+
+ggdraw(pfinal206_208)
+```
+
+```{r density207-208, fig.cap="Density distribution of burial finds and Duchcov hoard"}
+pmain207_208 <- ggplot(origin, aes(Pb207_206, Pb208_206, color = origin)) +
+stat_density2d(show.legend = FALSE, alpha = 0.4) +
+geom_point(size = 2, alpha = 0.4) +
+scale_color_brewer(palette = "Set1") +
+labs(color = "Origin") + lab_207_208
+
+ydens207_208 <- axis_canvas(pmain207_208, axis = "y", coord_flip = TRUE) +
+geom_density(data = origin, aes(x = Pb208_206, fill = origin),
+alpha = 0.2, size = 0.2)+
+coord_flip() +
+scale_fill_brewer(palette = "Set1")
+
+xdens207_208 <- axis_canvas(pmain207_208, axis = "x", coord_flip = FALSE) +
+geom_density(data = origin, aes(x = Pb207_206, fill = origin),
+alpha = 0.2, size = 0.2) +
+scale_fill_brewer(palette = "Set1")
+
+pfinal207_208 <- insert_yaxis_grob(pmain207_208, ydens207_208, 
+grid::unit(.2, "null"), position = "right")
+pfinal207_208 <- insert_xaxis_grob(pfinal207_208, xdens207_208, 
+grid::unit(.2, "null"), position = "top")
+
+ggdraw(pfinal207_208)
+```
+
+<!--
+## Distribution of brooches
+
+```{r brooches-gg}
+g_bro_206_207 <- ggplot(origin, aes(Pb206_204, Pb207_204, color = origin)) +
+  facet_wrap(~ brooch) +
+  labs(color = "Origin") +
+  lab_206_207
+g_bro_206_208 <- ggplot(origin, aes(Pb206_204, Pb208_204, color = origin)) +
+  labs(color = "Origin") +
+  facet_wrap(~ brooch) +
+  lab_206_208
+g_bro_207_208 <- ggplot(origin, aes(Pb207_206, Pb208_206, color = origin)) +
+  labs(color = "Origin") +
+  facet_wrap(~ brooch) +
+  lab_207_208
+```
+
+```{r brooch-plots, fig.cap="Distribution of brooches and other artefact types in burials and Duchcov hoard"}
+g_bro_206_207 +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE)
+
+g_bro_206_208 +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE)
+
+g_bro_207_208 +
+  geom_point() +
+  stat_smooth(method = "lm", se = FALSE)
+```
+-->
 
 # References

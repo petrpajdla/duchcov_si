@@ -55,11 +55,11 @@ bur1 <- burials_plot %>%
   ggplot(aes(Pb206_204, Pb207_204)) +
   stat_density2d(aes(color = kmeans, alpha = ..level..), 
                  size = 0.6, show.legend = FALSE) +
-  geom_point(aes(color = kmeans), alpha = 0.6, size = 2) +
+  geom_point(aes(color = kmeans), alpha = 0.6, size = 1.8) +
   scale_color_brewer(aesthetics = c("color", "fill"), palette = "Set1", name = "Burials\ngroup") +
-  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 2, show.legend = FALSE) + 
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 1.8, show.legend = FALSE) + 
   labs(shape = "Duchcov\nK-means\ncluster", title = "(A)") + lab_206_207 +
-  theme_light()
+  theme_gray()
 
 # burials_plot %>% 
 #   ggplot(aes(Pb206_204, Pb207_204)) +
@@ -73,11 +73,11 @@ bur2 <- burials_plot %>%
   ggplot(aes(Pb206_204, Pb208_204)) +
   stat_density2d(aes(color = kmeans, alpha = ..level..), 
                  size = 0.6, show.legend = FALSE) +
-  geom_point(aes(color = kmeans), alpha = 0.6, size = 2, show.legend = FALSE) +
+  geom_point(aes(color = kmeans), alpha = 0.6, size = 1.8, show.legend = FALSE) +
   scale_color_brewer(aesthetics = c("color", "fill"), palette = "Set1", name = "Burials\ngroup") +
-  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 2) + 
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 1.8) + 
   labs(shape = "Duchcov\nK-means\ncluster", title = "(B)") + lab_206_208 +
-  theme_light()
+  theme_gray()
 
 # tweaking the legend position
 # cowplot
@@ -93,7 +93,5 @@ bur2 <- bur2 + theme(legend.position="none")
 fX <- gridExtra::grid.arrange(bur1, legend1, bur2, legend2, 
                               nrow = 2, ncol = 2, 
                               widths = c(0.8, 0.2))
-
-ggsave(here::here("plots", "FIG10.pdf"), plot = fX, width = 90, height = 160, units = "mm")
-
-
+  
+ggsave(here::here("plots", "FIG10.pdf"), plot = fX, width = 190, height = 140, units = "mm")
