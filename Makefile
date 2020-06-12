@@ -1,4 +1,4 @@
-all: si/duchcov_support.html si/duchcov_support_burials.html plots/FIG5.pdf plots/FIG6.pdf plots/FIG7_1.pdf plots/FIG7_2.pdf plots/FIG8.pdf plots/FIG9.pdf plots/FIG10.pdf
+all: si/duchcov_support.html si/duchcov_support_burials.html plots/FIG5.pdf plots/FIG6.pdf plots/FIG7.pdf plots/FIG8.pdf plots/FIG9.pdf plots/FIG10.pdf
 
 si/duchcov_support.html: si/duchcov_references.bib si/duchcov_support.Rmd data/duchcov.csv data/ore_sources.csv
 	cd code; R CMD BATCH knit_report.R
@@ -12,10 +12,12 @@ plots/FIG5.pdf: code/figure5.R data/duchcov.csv
 plots/FIG6.pdf: code/figure6.R data/duchcov.csv
 	cd code; R CMD BATCH figure6.R
 
-plots/FIG7_1.pdf: code/figure7.R data/duchcov.csv data/ore_sources.csv
-	cd code; R CMD BATCH figure7.R
-    
-plots/FIG7_2.pdf: code/figure7.R data/duchcov.csv data/ore_sources.csv
+# plots/FIG7_1.pdf: code/figure7.R data/duchcov.csv data/ore_sources.csv
+# 	cd code; R CMD BATCH figure7.R
+# plots/FIG7_2.pdf: code/figure7.R data/duchcov.csv data/ore_sources.csv
+# 	cd code; R CMD BATCH figure7.R
+
+plots/FIG7.pdf: code/figure7.R data/duchcov.csv data/ore_sources.csv
 	cd code; R CMD BATCH figure7.R
 
 plots/FIG8.pdf: code/figure8.R data/duchcov.csv data/ore_sources.csv
