@@ -1,0 +1,1441 @@
+---
+title: "Duchcov hoard: Supporting Information"
+author: "Alžběta Danielisová, Petr Pajdla"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  bookdown::html_document2:
+    theme: spacelab
+    highlight: tango
+    number_sections: no
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+    fig.caption: true
+bibliography: duchcov_references.bib
+csl: journal-of-archaeological-science.csl
+nocite: |
+  @scheeres2013, @scheeres2014, @scheeres2014phd, @knipper2018
+---
+
+# Introduction
+
+Supporting information accompanying the article:
+
+> Claiming the land or protecting the goods? The Duchcov hoard in Bohemia as a proxy for 'Celtic migrations' in Europe in the 4th century BC
+
+`R` version 4.0.3 was used [@rcore] with the following packages (see further):
+`tidyverse` family of packages [@tidyverse],
+`ggforce` [@ggforce],
+`ggbiplot` [@ggbiplot],
+`ggridges` [@ggridges],
+`cluster` [@cluster],
+`pdist` [@pdist],
+`StatMatch` [@StatMatch],
+`MASS` [@MASS],
+`cowplot` [@cowplot],
+`corrplot` [@corrplot],
+`knitr` [@knitr3; @knitr2; @knitr1], 
+`DT` [@DT], 
+`bookdown` [@bookdown2; @bookdown1],
+`gridExtra` [@gridExtra], 
+`here` [@here].
+
+The data from our analyses necessary to reproduce this report are made
+available and enclosed in the SI. The only source that is not shared
+are lead isotope ratios of the ore sources that are collected from published materials.
+References are included in the text.
+
+Notice that also figures and plots included in the text are shown here.
+Code blocks with important calculations are embedded in the report whereas code blocks 
+responsible for plotting and minor tasks are hidden.
+
+```{r init-setup, echo=FALSE}
+knitr::opts_chunk$set(echo = FALSE, 
+                      warning = FALSE, 
+                      message = FALSE, 
+                      fig.align = "center", 
+                      cache = FALSE)
+set.seed(42)
+```
+
+```{r packages}
+library(plyr) # loaded to avoid problems with loading plyr after dplyr
+library(tidyverse)
+library(sf)
+library(htmltools)
+
+# theme for plots
+theme_set(theme_minimal())
+
+# temporary folder for data outputs
+dir.create(here::here("data", "temp"))
+```
+
+```{r data}
+duchcov <- read_rds(here::here("data/analytical", "duchcov.RDS"))
+dir.create(here::here("data", "temp"), showWarnings = FALSE)
+```
+
+# Analysed objects
+
+```{r tableInvestigatedObjects, results="asis"}
+cat("<table width='100%'>", 
+    paste0("<caption>", "(#tab:tableInvestigatedObjects)", 
+           "Investigated bronze objects from the hoard with the original identification number", 
+           "</caption>"), 
+    "</table>", 
+    sep = "\n")
+
+duchcov$meta %>% 
+  select(ident, type) %>% 
+  rename(Code = ident, Type = type) %>% 
+  DT::datatable(width = "85%", 
+                extensions = c('Scroller', 'Buttons'), 
+                options = list(
+                  scrollY = 300, scroller = TRUE,
+                  dom = "Bfrtip",
+                  buttons = c("csv", "excel")
+                ))
+```
+
+
+# Compositional analysis {#pca}
+
+```{r compositionFullTable, results="asis"}
+dataCompoTab <- read_csv(here::here("reports", "table_compositions.csv"))
+
+cat("<table width='100%'>", 
+    paste0("<caption>", "(#tab:compositionFullTable)", 
+           "Major, minor and trace element composition in the bronze objects as determined by ICP-MS (LGI). ",
+           "The analytical precision for all the analysed elements ranged from 0.3% to 3% relative. ", 
+           "Data are normalised to 100%; analytical total is provided", 
+           "</caption>"), 
+    "</table>", 
+    sep = "\n")
+
+# a custom table container
+sketch <- htmltools::withTags(table(
+  class = 'display',
+  thead(
+    tr(
+      th(rowspan = 3, 'ID and Code'),
+      th(rowspan = 2, 'Detection limits'),
+      lapply(c("ppm", rep("%", 2), "ppm", "%", "ppm", rep("%", 8), "ppm"), th),
+      th("weight %")
+    ),
+    tr(
+      lapply(c("<100ppm", rep("<0.1%", 2), "<50ppm", "<0.1%", "<50ppm", 
+               "<0.01%", "<0.05%", "<0.01%", "<0.1%", "<0.005%", "<0.05%", 
+               "<0.005%", "<0.001%", "<50ppm"), th),
+      th(rowspan = 2, "Analytical total")
+    ),
+    tr(
+      # th(rowspan = 2, 'Detection limits'),
+      th('Element'),
+      lapply(colnames(dataCompoTab)[c(-1, -17)], th),
+    )
+  )
+))
+
+DT::datatable(dataCompoTab, 
+              container = sketch,
+              extensions = c('Scroller', 'Buttons'),
+              width = "100%", 
+              options = list(
+                scrollX = TRUE, scrollY = 400, 
+                scroller = TRUE,
+                dom = "Bfrtip",
+                buttons = c("csv", "excel")
+              ))
+```
+
+```{r composition}
+# elements selected for PCA and further analyses
+elements <- c("Co", "Ni", "Zn", "As", "Ag", "Sb", "Pb", "Bi")
+```
+
+Only `r paste(elements, sep = ", ")` element compositions of $n =$ `r nrow(duchcov$comp)`
+analyzed artefacts from Duchcov hoard were used for the analyses.
+
+The input data are scaled by log-transformation and subsequent standardization [@baxter2016, 29],
+i.e.:
+
+$$ y_{ij} \leftarrow \log (x_{ij} + 1) $$
+$$ z_{ij} \leftarrow \frac{(y_{ij}-\overline{y_j})}{s_j} $$
+
+where $i = 1 \dots n$ observations and $j = 1 \dots m$ elements, i.e. `r paste(elements, sep = ", ")`.
+
+Principal component analysis (PCA) is applied to reduce the dimensionality.
+
+```{r pca, echo=TRUE}
+composition_biplot <- scale(log1p(duchcov$comp[, elements]))
+```
+```{r plot-pca}
+# solve overplotting in variable names on a biplot
+colnames(composition_biplot)[4] <- "\nAs"
+colnames(composition_biplot)[8] <- "\nBi"
+# colnames(composition_biplot)[2] <- "\nNi"
+# colnames(composition_biplot)[7] <- "\nPb"
+
+pc_comp <- prcomp(composition_biplot)
+write_rds(pc_comp, here::here("data/temp", "pc_comp.RDS"))
+
+summary(pc_comp)
+```
+
+```{r biplot, fig.cap="Biplot"}
+ggbiplot::ggbiplot(pc_comp)
+```
+
+```{r limit_pcs, echo=TRUE}
+# retain at least 95 % of variability
+pc_comp <- pc_comp$x[, 1:6]
+```
+
+
+```{r}
+rm(list = c("composition_biplot"))
+```
+
+## Grouping in the compositions 
+
+In this study, three clustering methods were subsequently tested using the factor scores from the PCA:
+
+1. hierarchical clustering based on Euclidean distances [@james2013; @carlson2017]
+2. K-means clustering [@rousseeuw1987; @kaufman1990; @carlson2017], and 
+3. Gaussian mixture models [@gohring2016].
+
+Neither the number of clusters nor the cluster-specific features were known beforehand 
+[@fraley1998; @gohring2016].
+Although it makes sense to use Gaussian mixture models because of the possibility of accounting for variability in data distributions, these proved difficult – even impossible – to justify in terms of archaeological interpretation because of the small number of the samples. Thus we decided to apply a K-means clustering algorithm. 
+
+The number of clusters was determined using data-centered approaches for validation of within-cluster consistency: elbow and silhouette methods [@carlson2017; @bruce2017].
+
+<!-- Elbow method and silhouette method are used to determine number of clusters in the data set. -->
+<!-- Both methods employed are data-driven. -->
+
+The elbow method explores within groups sum of squares (WSS, measure of variation) as a function of 
+number of clusters. 
+The goal is to find a breaking point (elbow) where the amount of variation explained
+does not improve significantly.
+
+```{r screeplot, fig.cap="Scree plot"}
+plot_scree_clusters <- function(x) {
+  wss <- 0
+  max_i <- (nrow(x) - 1)/4
+  for (i in 1:max_i) {
+    km.model <- kmeans(x, centers = i, nstart = 20)
+    wss[i] <- km.model$tot.withinss
+  }
+  plot(1:max_i, wss, type = "b",
+       xlab = "Number of Clusters",
+       ylab = "Within groups sum of squares")
+}
+
+plot_scree_clusters(pc_comp)
+```
+
+In the silhouette method we explore average silhouette width 
+(measure of how well data within the cluster match it and on the other hand how well are they separated from other clusters) 
+as a function of number of clusters.
+The goal is to find optimal number of clusters with most consistent clusters.
+
+```{r silhouette, fig.cap="Silhouettes"}
+plot_sil_width <- function(x) {
+  sw <- 0
+  max_i <- (nrow(x) - 1)/4
+  for (i in 2:max_i) {
+    km.model <- cluster::pam(x = pc_comp, k = i)
+    sw[i] <- km.model$silinfo$avg.width
+  }
+  sw <- sw[-1]
+  plot(2:max_i, sw, type = "b",
+       xlab = "Number of Clusters",
+       ylab = "Average silhouette width")
+}
+
+plot_sil_width(pc_comp)
+```
+
+Both employed methods are data-driven and provide several solutions,
+we decided to use 4 cluster as this number is favored by both methods.
+
+```{r kmeans, echo=TRUE}
+cluster <- tibble(kmeans = kmeans(pc_comp, centers = 4, nstart = 50)$cluster) %>%
+  mutate(kmeans = as_factor(kmeans)) %>% 
+  # adding PC space
+  bind_cols(as_tibble(pc_comp[, 1:3])) %>% 
+  # editing cluster labels to retain connection to the text
+  mutate(kmeans = case_when(PC1 > 1 & PC2 < 1 ~ "1",
+                            PC2 > 3 ~ "4",
+                            PC3 < -2 ~ "3",
+                            PC1 < 0 & PC3 > -1 ~ "2"),
+         kmeans = factor(kmeans)) %>% 
+  select(-starts_with("PC"))
+
+cluster %>% write_csv(here::here("data/temp", "clusters.csv"))
+```
+
+```{r km-pca, fig.cap="K-means clusters in PCA 1 to 3 spaces", fig.width=10}
+pc12 <- ggplot(as_tibble(pc_comp), aes(PC1, PC2, fill = cluster$kmeans)) +
+  # ggforce::geom_mark_hull(aes(color = cluster$kmeans), expand = unit(2.4, "mm")) +
+  geom_point(aes(shape = cluster$kmeans, color = cluster$kmeans)) +
+  scale_fill_brewer(palette = "Set1") + scale_color_brewer(palette = "Set1") +
+  labs(fill = "k-means\ncluster", color = "k-means\ncluster", shape = "k-means\ncluster")
+
+pc23 <- ggplot(as_tibble(pc_comp), aes(PC3, PC2, fill = cluster$kmeans)) +
+  # ggforce::geom_mark_hull(aes(color = cluster$kmeans), expand = unit(2.4, "mm")) +
+  geom_point(aes(shape = cluster$kmeans, color = cluster$kmeans)) +
+  scale_fill_brewer(palette = "Set1") + scale_color_brewer(palette = "Set1") +
+  labs(fill = "k-means\ncluster", color = "k-means\ncluster", shape = "k-means\ncluster")
+
+gridExtra::grid.arrange(pc12, pc23, nrow = 1)
+```
+
+
+Mean values for different element compositions in the clusters 1 to 4:
+
+```{r elementsInGroups}
+km_elements <- as_tibble(cbind(duchcov$comp[, elements], cluster)) %>%
+  group_by(kmeans) %>%
+  summarize_all(mean) %>%
+  mutate_at(vars(-kmeans), round, 3)
+
+knitr::kable(km_elements,
+             rownames = FALSE, caption = "Mean values for element compositions")
+```
+
+# Lead isotopes
+
+```{r isotopes}
+isotopes <- as_tibble(duchcov$iso)
+isotopes <- bind_cols(isotopes, cluster)
+write_rds(isotopes, here::here("data/temp", "isotopes.RDS"))
+```
+
+```{r isotopesTable, results="asis"}
+cat("<table width='100%'>", 
+    paste0("<caption>", "(#tab:isotopesTable)", 
+           "Lead isotopes. ",
+           "Relative analytical precision of measurements by MC-ICP-MS (IGMMR) ",
+           "are better than 0.005% (RSD) for ratios with <sup>206</sup>Pb in the denominator, ",
+           "and better than 0.01% with <sup>204</sup>Pb in the denominator", 
+           "</caption>"), 
+    "</table>", 
+    sep = "\n")
+
+bind_cols(code = duchcov$meta$ident,
+          as_tibble(isotopes)) %>% 
+  mutate(across(ends_with("206"), round, 4),
+         across(ends_with("204"), round, 3)) %>% 
+  select(-kmeans) %>% 
+  rename(
+    Code = code,
+    '<sup>207</sup>Pb/<sup>206</sup>Pb' = Pb207_206,
+    '<sup>208</sup>Pb/<sup>206</sup>Pb' = Pb208_206,
+    '<sup>206</sup>Pb/<sup>204</sup>Pb' = Pb206_204,
+    '<sup>207</sup>Pb/<sup>204</sup>Pb' = Pb207_204,
+    '<sup>208</sup>Pb/<sup>204</sup>Pb' = Pb208_204
+  ) %>% 
+  DT::datatable(escape = FALSE, 
+                width = "100%", 
+                extensions = c('Scroller', 'Buttons'),
+                options = list(
+                  scrollX = TRUE, scrollY = 400, 
+                  scroller = TRUE,
+                  dom = "Bfrtip",
+                  buttons = c("csv", "excel")
+                ))
+```
+
+
+```{r labels}
+lab_206_207 <- labs(x = expression(paste(""^206, "Pb/", ""^204, "Pb")),
+                    y = expression(paste(""^207, "Pb/", ""^204, "Pb")))
+lab_206_208 <- labs(x = expression(paste(""^206, "Pb/", ""^204, "Pb")),
+                    y = expression(paste(""^208, "Pb/", ""^204, "Pb")))
+lab_207_208 <- labs(x = expression(paste(""^207, "Pb/", ""^206, "Pb")),
+                    y = expression(paste(""^208, "Pb/", ""^206, "Pb")))
+```
+
+```{r kmiso, fig.cap="K-means clusters in isospaces with linear models for each cluster"}
+ggplot(isotopes, aes(Pb206_204, Pb207_204)) +
+  stat_smooth(method = "lm", se = FALSE, aes(color = kmeans), size = 0.4) +
+  geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
+  scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
+  labs(shape = "k-means\ncluster") + lab_206_207
+
+ggplot(isotopes, aes(Pb206_204, Pb208_204)) +
+  stat_smooth(method = "lm", se = FALSE, aes(color = kmeans), size = 0.4) +
+  geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
+  scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
+  labs(shape = "k-means\ncluster") + lab_206_208
+
+ggplot(isotopes, aes(Pb207_206, Pb208_206)) +
+  stat_smooth(method = "lm", se = FALSE, aes(color = kmeans), size = 0.4) +
+  geom_point(aes(color = kmeans, shape = kmeans), size = 1.6) +
+  scale_color_brewer(palette = "Set1", name = "k-means\ncluster") +
+  labs(shape = "k-means\ncluster") + lab_207_208
+```
+
+# Ore sources
+
+Here we compare the distributions of Duchcov K-means clusters with distributions
+of known sources based on lead isotope signals.
+The Duchcov hoard is most interesting for the large dispersion of its lead isotope (LI)
+ratios. Therefore, a combined statistical approach was used in this
+study. Euclidean distances in the multidimensional settings defined by
+the LI ratios as a traditional way of determining the
+similarity between the point clouds was completed with the Mahalanobis
+distance (MD) metric. MD fits best the task of computing the distance between
+clusters with a non-trivial number of points as it accounts for the
+effects of the components, variances, and correlations, thus essentially
+accounting for the shape of the multivariate distribution. Euclidean distance (ED) is useful
+for small distributions where a single data point has a large effect on
+the variances of the components. In other words, ED works better when
+the comparative clusters of data are small, i.e. contain a limited
+number of points. LDA was then used to classify the individual points
+based on the LI values into different source regions.
+
+```{r data-sources}
+regions <- c(
+  "Apuseni" = "Apuseni & Baia Mare", 
+  "Baia Mare" = "Apuseni & Baia Mare",
+  # "Bohemia" = "Bohemia",
+  "CG, Harz" = "CG, Harz & Rammelsberg",
+  "Rammelsberg" = "CG, Harz & Rammelsberg",
+  "Erzgebirge" = "Erzgebirge",
+  "Inn Valley" = "Inn Valley & Mitterberg",
+  "Mitterberg" = "Inn Valley & Mitterberg",
+  "Rhenish mass." = "Rhenish mass.",
+  "Slovakia" = "Slovakia",
+  "SE Alps" = "SE Alps",
+  "Valais" = "Valais"
+)
+
+region1_lvls <- c("Valais", "Rhenish mass.",
+                  "CG, Harz & Rammelsberg",
+                  "Inn Valley & Mitterberg", "SE Alps",
+                  "Erzgebirge", # "Bohemia",
+                  "Slovakia", "Apuseni & Baia Mare")
+
+region2_lvls <- c("Valais", "Rhenish mass.",
+                  "CG, Harz", "Rammelsberg",
+                  "Inn Valley", "Mitterberg", "SE Alps", 
+                  "Erzgebirge", # "Bohemia",
+                  "Slovakia", "Apuseni", "Baia Mare")
+
+sources <- read_csv(here::here("data/analytical", "sources.csv")) %>%
+  mutate(region = factor(region,
+                         levels = region1_lvls),
+         region2 = factor(region2,
+                          levels = region2_lvls))
+
+# frame margins of further plots
+dist_duchcov <- vector(mode = "list")
+dist_duchcov$Pb206x$min <-  min(isotopes$Pb206_204, na.rm = TRUE)
+dist_duchcov$Pb206x$max <-  max(isotopes$Pb206_204, na.rm = TRUE)
+dist_duchcov$Pb207y$min <-  min(isotopes$Pb207_204, na.rm = TRUE)
+dist_duchcov$Pb207y$max <-  max(isotopes$Pb207_204, na.rm = TRUE)
+dist_duchcov$Pb208_204y$min <-  min(isotopes$Pb208_204, na.rm = TRUE)
+dist_duchcov$Pb208_204y$max <-  max(isotopes$Pb208_204, na.rm = TRUE)
+
+dist_duchcov$Pb208y$min <-  min(isotopes$Pb208_206, na.rm = TRUE)
+dist_duchcov$Pb208y$max <-  max(isotopes$Pb208_206, na.rm = TRUE)
+dist_duchcov$Pb207x$min <-  min(isotopes$Pb207_206, na.rm = TRUE)
+dist_duchcov$Pb207x$max <-  max(isotopes$Pb207_206, na.rm = TRUE)
+
+write_rds(file = here::here("data/temp", "sources.RDS"), 
+          x = list(sources_full = sources,
+                   duchcov_frame = dist_duchcov))
+```
+
+
+```{r gg-sources}
+gg_206_207 <- sources %>% 
+  ggplot(aes(Pb206_204, Pb207_204)) +
+  lab_206_207
+
+gg_206_208 <- sources %>% 
+  ggplot(aes(Pb206_204, Pb208_204)) +
+  lab_206_208
+
+gg_207_208 <- sources %>% 
+  ggplot(aes(Pb207_206, Pb208_206)) +
+  lab_207_208
+```
+
+## Visual methods of comparison
+
+### Data distribution in full isospaces
+
+Overall view of distributions of lead isotope values from different sources.
+Due to a lot of overplotting each of important sources is presented in an 
+individual small multiple facet of given trellis plot further in the text.
+The gray rectangle highlights the Duchcov data (the area that is "zoomed in" in further plots).
+
+```{r isospaces-full, fig.cap="Ore sources overlaid with Duchcov hoard data"}
+plot_full <- function(x) {
+  x + geom_point(alpha = 0.6, aes(color = region2, shape = region2)) +
+    scale_color_viridis_d(direction = -1, end = 0.9) +
+    scale_shape_manual(values = c(0:3, 5:10, 12)) +
+    geom_point(data = isotopes, shape = "cross") +
+    labs(color = "Region", shape = "Region")
+}
+
+gg_206_207 %>%  plot_full() +
+  annotate("rect",
+           xmin = dist_duchcov$Pb206x$min, xmax = dist_duchcov$Pb206x$max,
+           ymin = dist_duchcov$Pb207y$min, ymax = dist_duchcov$Pb207y$max, alpha = 0.2)
+
+
+gg_206_208 %>%  plot_full() +
+  annotate("rect",
+           xmin = dist_duchcov$Pb206x$min, xmax = dist_duchcov$Pb206x$max,
+           ymin = dist_duchcov$Pb208_204y$min, ymax = dist_duchcov$Pb208_204y$max, alpha = 0.2)
+
+gg_207_208 %>%  plot_full() +
+  annotate("rect",
+           xmin = dist_duchcov$Pb207x$min, xmax = dist_duchcov$Pb207x$max,
+           ymin = dist_duchcov$Pb208y$min, ymax = dist_duchcov$Pb208y$max, alpha = 0.2)
+```
+
+```{r gg-sources-filter}
+gg_206_207 <- sources %>% 
+  ggplot(aes(Pb206_204, Pb207_204)) +
+  lab_206_207 +
+  guides(color = guide_legend(nrow = 2), 
+         shape = guide_legend(nrow = 1)) +
+  labs(color = "Region", shape = "K-means cluster") +
+  theme(legend.position = "bottom", legend.box = "h")
+
+gg_206_208 <- sources %>% 
+  ggplot(aes(Pb206_204, Pb208_204)) +
+  lab_206_208 +
+  guides(color = guide_legend(nrow = 2), 
+         shape = guide_legend(nrow = 1)) +
+  labs(color = "Region", shape = "K-means cluster") +
+  theme(legend.position = "bottom", legend.box = "h")
+
+gg_207_208 <- sources %>% 
+  ggplot(aes(Pb207_206, Pb208_206)) +
+  lab_207_208 +
+  guides(color = guide_legend(nrow = 2), 
+         shape = guide_legend(nrow = 1)) +
+  labs(color = "Region", shape = "K-means cluster") +
+  theme(legend.position = "bottom", legend.box = "h")
+```
+
+#### Linear trends
+
+Several *visual* methods are explored in order to determine whether the lead isotopic
+signal from Duchcov hoard objects grouped by k-means clustering correspond to
+known sources.
+
+Trend lines (linear models) are probably the most frequently 
+used method to explore relations between various groups in isospaces.
+
+```{r full-lm, fig.cap="Ore sources highlighted using linear models overlaid with Duchcov hoard data, full views of source distributions"}
+plot_lm <- function(x) {
+  x + 
+    geom_point(alpha = 0.2, aes(color = region2), show.legend = FALSE) +
+    stat_smooth(method = "lm", se = FALSE, aes(color = region2), size = 0.4, show.legend = FALSE) +
+    # stat_ellipse(aes(color = region2), size = 0.4) +
+    scale_color_viridis_d(direction = -1, end = 0.9) + 
+    geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.4, show.legend = FALSE) +
+    facet_wrap(~region, scales = "free")
+}
+
+gg_206_207 %>% plot_lm()
+gg_206_208 %>% plot_lm()
+gg_207_208 %>% plot_lm()
+```
+
+```{r create-concave-hulls}
+get_chull <- function(x) {
+  concaveman::concaveman(x, concavity = 1.4, length_threshold = 0.01)
+}
+
+chulls <- sources %>% 
+  select(-region, -site, -reference) %>% 
+  group_by(region2) %>% 
+  nest() %>%
+  dplyr::mutate(pb1 = map(data, select, Pb207_206, Pb208_206),
+                pb2 = map(data, select, Pb206_204, Pb207_204),
+                pb3 = map(data, select, Pb206_204, Pb208_204),
+                across(starts_with("pb"), map, as.matrix),
+                chull1 = map(pb1, get_chull),
+                chull2 = map(pb2, get_chull),
+                chull3 = map(pb3, get_chull),
+                across(starts_with("chull"), map, list),
+                across(starts_with("chull"), map, st_polygon),
+                across(c("chull2", "chull3"), map, st_buffer, dist = 0.006),
+                across(c("chull1"), map, st_buffer, dist = 0.0006),
+                across(starts_with("chull"), map, st_coordinates),
+                across(starts_with("chull"), map, as_tibble)) %>% 
+  select(region2, starts_with("chull"))
+
+chulls_list <- list(Pb76_86 = NA,
+                    Pb64_74 = NA,
+                    Pb64_84 = NA)
+
+chulls_list$Pb76_86 <- chulls %>% 
+  select(chull1) %>% 
+  unnest(cols = chull1) %>% 
+  rename(Pb207_206 = X, Pb208_206 = Y) %>% 
+  dplyr::mutate(region3 = as.character(region2),
+                region = unname(regions[region3]),
+                region = factor(region, levels = region1_lvls)) %>% 
+  select(-starts_with("L"), region3)
+
+chulls_list$Pb64_74 <- chulls %>% 
+  select(chull2) %>% 
+  unnest(cols = chull2) %>% 
+  rename(Pb206_204 = X, Pb207_204 = Y) %>% 
+  mutate(region3 = as.character(region2),
+         region = unname(regions[region3]),
+         region = factor(region, levels = region1_lvls)) %>% 
+  select(-starts_with("L"), region3)
+
+chulls_list$Pb64_84 <- chulls %>% 
+  select(chull3) %>% 
+  unnest(cols = chull3) %>% 
+  rename(Pb206_204 = X, Pb208_204 = Y) %>% 
+  mutate(region3 = as.character(region2),
+         region = unname(regions[region3]),
+         region = factor(region, levels = region1_lvls)) %>% 
+  select(-starts_with("L"), region3)
+
+rm(list = c("chulls"))
+```
+
+#### Concave hulls
+
+*Areas* corresponding to LI signals from different geographic regions are
+constructed in isospaces using concave hulls [@concaveman, concaveman algorithm] of the point distributions
+for given geographic regions and overlaid with Duchcov data.
+
+```{r full-chulls, fig.cap="Ore sources highlighted using concave hulls overlaid with Duchcov hoard data, full views of source distributions"}
+plot_chull <- function(x, scales = "fixed") {
+  x + geom_point(alpha = 0.2, aes(color = region2), show.legend = FALSE) +
+    # ggforce::geom_mark_hull(aes(fill = region2, color = region2), expand = unit(2.4, "mm"),
+    #                         alpha = 0.1, show.legend = FALSE) +
+    scale_color_viridis_d(direction = -1, end = 0.9) + scale_fill_viridis_d(direction = -1) +
+    geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
+    scale_shape_manual(values = c(1, 2, 0, 3)) +
+    facet_wrap(~region, scales = scales)
+}
+
+gg_206_207 %>% plot_chull(scales = "free") + geom_polygon(data = chulls_list$Pb64_74, 
+                                                          aes(fill = region2, color = region2), 
+                                                          alpha = 0.2, show.legend = FALSE)
+gg_206_208 %>% plot_chull(scales = "free") + geom_polygon(data = chulls_list$Pb64_84,
+                                                          aes(fill = region2, color = region2), 
+                                                          alpha = 0.2, show.legend = FALSE)
+gg_207_208 %>% plot_chull(scales = "free") + geom_polygon(data = chulls_list$Pb76_86,
+                                                          aes(fill = region2, color = region2), 
+                                                          alpha = 0.2, show.legend = FALSE)
+```
+
+```{r limiting-size}
+gg_206_207 <- gg_206_207 +
+  coord_cartesian(xlim = c(dist_duchcov$Pb206x$min, dist_duchcov$Pb206x$max),
+                  ylim = c(dist_duchcov$Pb207y$min, dist_duchcov$Pb207y$max))
+
+gg_206_208 <- gg_206_208 +
+  coord_cartesian(xlim = c(dist_duchcov$Pb206x$min, dist_duchcov$Pb206x$max),
+                  ylim = c(dist_duchcov$Pb208_204y$min, dist_duchcov$Pb208_204y$max))
+
+gg_207_208 <- gg_207_208 +
+  coord_cartesian(xlim = c(dist_duchcov$Pb207x$min, dist_duchcov$Pb207x$max),
+                  ylim = c(dist_duchcov$Pb208y$min, dist_duchcov$Pb208y$max))
+```
+
+## Close up of Duchcov data
+
+#### Concave hulls
+
+```{r sources-chull, fig.cap="Detail of ore sources highlighted using concave hulls overlaid with Duchcov data"}
+gg_206_207 %>% plot_chull() + geom_polygon(data = chulls_list$Pb64_74, 
+                                           aes(fill = region2, color = region2), 
+                                           alpha = 0.2, show.legend = FALSE)
+gg_206_208 %>% plot_chull() + geom_polygon(data = chulls_list$Pb64_84,
+                                           aes(fill = region2, color = region2), 
+                                           alpha = 0.2, show.legend = FALSE)
+gg_207_208 %>% plot_chull() + geom_polygon(data = chulls_list$Pb76_86,
+                                           aes(fill = region2, color = region2), 
+                                           alpha = 0.2, show.legend = FALSE)
+```
+
+#### Kernel density estimation
+
+Kernel density estimation for each of the source regions helps in identifying to
+what extent the point distribution of Duchcov hoard objects fits the density
+distribution in given regions. 
+`kde2d` algorithm of `MASS` package is used [@MASS, called by 'ggplot2' package].
+
+```{r sources-kde, fig.cap="Kernel density estimation of ore sources"}
+gg_206_207 + 
+  stat_density2d(aes(color = region2), h = c(0.25, 0.10), show.legend = FALSE) +
+  scale_color_viridis_d(direction = -1, end = 0.9) +
+  geom_point(alpha = 0.1, size = 0.8, color = "black") +
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
+  scale_shape_manual(values = c(1, 2, 0, 3)) +
+  facet_wrap(~ region)
+
+gg_206_208 + 
+  stat_density2d(aes(color = region2), h = c(0.25, 0.5), show.legend = FALSE) +
+  scale_color_viridis_d(direction = -1, end = 0.9) +
+  geom_point(alpha = 0.1, size = 0.8, color = "black") +
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
+  scale_shape_manual(values = c(1, 2, 0, 3)) +
+  facet_wrap(~ region)
+
+gg_207_208 + 
+  stat_density2d(aes(color = region2), h = c(0.0075, 0.03), show.legend = FALSE) +
+  scale_color_viridis_d(direction = -1, end = 0.9) +
+  geom_point(alpha = 0.1, size = 0.8, color = "black") +
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6) +
+  scale_shape_manual(values = c(1, 2, 0, 3)) +
+  facet_wrap(~ region)
+```
+
+#### Trend lines (Linear models)
+
+```{r sources-lm, fig.cap="Detail of ore sources highlighted using trend lines overlaid with Duchcov data"}
+plot_zoomed <- function(x) {
+  x + geom_point(alpha = 0.2, aes(color = region2), show.legend = FALSE) +
+    stat_smooth(aes(color = region2), method = "lm", se = FALSE, size = 1, 
+                alpha = 0.2, show.legend = FALSE) +
+    # stat_ellipse(aes(color = region2), size = 0.4) +
+    scale_color_viridis_d(direction = -1, end = 0.9) + 
+    geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.6, show.legend = FALSE) +
+    scale_shape_manual(values = c(1, 2, 0, 3)) +
+    stat_smooth(data = filter(isotopes, kmeans == 1), method = "lm", se = FALSE, 
+                alpha = 0.6, color = "black", size = 0.4, linetype = 2) +
+    stat_smooth(data = filter(isotopes, kmeans == 2), method = "lm", se = FALSE, 
+                alpha = 0.6, color = "black", size = 0.4, linetype = 3) +
+    facet_wrap(~region)
+}
+
+gg_206_207 %>% plot_zoomed()
+gg_206_208 %>% plot_zoomed()
+gg_207_208 %>% plot_zoomed()
+```
+
+```{r}
+rm(list = c("dist_duchcov"))
+```
+
+## Computational methods
+
+### Euclidean distance
+
+Euclidean distance (ED) between all the points in given geographic region and K-means clusters
+from Duchcov hoard is used as one of the proxies to identify possible sources
+of the lead isotope ratios $^{208}Pb/^{204}Pb$, $^{207}Pb/^{204}Pb$, $^{206}Pb/^{204}Pb$,
+$^{208}Pb/^{206}Pb$ and $^{207}Pb/^{206}Pb$.
+
+The problem with using Euclidean distances is that the multivariate *shape* of the data distribution is
+not taken into account, thus Mahalanobis distance (see further) seems as a better fit
+for the task, even though Euclidean distances are commonly used [e.g. @ling2014].
+
+```{r distance-function, echo=TRUE}
+# df = input data frame
+# gr = grouping /factor/ variable
+nest_matrix <- function(df, gr) {
+  output <- df %>% group_by(!!sym(gr)) %>%
+    nest() %>%
+    mutate(mx = map(data, as.matrix))
+  return(output)
+}
+
+# origin/goal = data frames to count distances between
+# group_* = grouping variable 
+# method = euclidean or mahalanobis
+point_cloud_distance <- function(origin, goal, group_origin, group_goal, method) {
+  # create nested matrices
+  x <- nest_matrix(origin, group_origin)
+  y <- nest_matrix(goal, group_goal)
+  lx <- nrow(x)
+  ly <- nrow(y)
+  # create empty list for results
+  distance <- vector(mode = "list", length = ly)
+  for (k in seq_along(distance)) {
+    distance[[k]] <- vector(mode = "list", length = lx)
+    names(distance[[k]]) <- x %>% pull(!!sym(group_origin))
+  }
+  names(distance) <- y %>% pull(!!sym(group_goal)) %>% str_c("K-means cluster ", .)
+  # euclidean distances
+  if (method == "euclidean") {
+    for (i in 1:ly) {
+      for (j in 1:lx) {
+        distance[[i]][[j]] <- pdist::pdist(X = y$mx[[i]], Y = x$mx[[j]])@dist
+      }
+      distance[[i]] <- bind_rows(lapply(distance[[i]], as_tibble), .id = "region")
+    }
+    # mahalanobis distance
+  } else if (method == "mahalanobis") {
+    for (i in 1:ly) {
+      for (j in 1:lx) {
+        distance[[i]][[j]] <- StatMatch::mahalanobis.dist(data.x = y$mx[[i]],
+                                                          data.y = x$mx[[j]])
+      }
+      distance[[i]] <- bind_rows(
+        lapply(lapply(distance[[i]], as.vector), as_tibble), .id = "region")
+    }
+  }
+  distance <- bind_rows(distance, .id = "kmeans")
+  return(distance)
+}
+```
+
+```{r euclidean-distance}
+src <- sources %>% 
+  select(region2, starts_with("Pb"))
+iso <- isotopes %>% 
+  select(kmeans, starts_with("Pb")) %>% 
+  na.omit()
+
+euclidean_distance <- point_cloud_distance(origin = src, goal = iso,
+                                           group_origin = "region2", group_goal = "kmeans",
+                                           method = "euclidean") %>%
+  mutate(region = fct_relevel(region, levels(sources$region2)))
+```
+
+```{r euclidean-boxplot, fig.cap="Euclidean distances between Duchcov k-means clusters and different regions"}
+ggplot(euclidean_distance, aes(y = region, x = value, fill = region)) +
+  ggridges::geom_density_ridges(alpha = 0.4, show.legend = FALSE, scale = 1.1) +
+  scale_fill_viridis_d(direction = -1, end = 0.9) +
+  coord_cartesian(xlim = c(0, 1)) +
+  facet_wrap(~kmeans, scales = "fixed") +
+  labs(y = "Region",
+       x = "Euclidean distance to a given Duchcov K-means cluster")
+```
+
+### Mahalanobis distance
+
+Mahalanobis distance (MH) is used as a metric to compare points fit in a given source distribution.
+The scale differences and effects of correlation between the variables are removed in case of Mahalanobis distance,
+thus MH suits this task better than ED.
+
+```{r mahalanobis-distance}
+mahalanobis_distance <- point_cloud_distance(origin = src, goal = iso,
+                                             group_origin = "region2", group_goal = "kmeans",
+                                             method = "mahalanobis") %>%
+  mutate(region = fct_relevel(region, levels(sources$region2)))
+
+mh_max <- max(mahalanobis_distance$value)
+```
+
+
+```{r mahalanobis-boxplot, fig.cap="Mahalanobis distances between Duchcov k-means clusters and different regions"}
+mahalanobis_distance %>% 
+  mutate(value = value / mh_max) %>% 
+  ggplot(aes(y = region, x = value, fill = region)) +
+  ggridges::geom_density_ridges(alpha = 0.4, show.legend = FALSE, scale = 1.1) +
+  scale_fill_viridis_d(direction = -1, end = 0.9) +
+  coord_cartesian(xlim = c(0, 1)) +
+  facet_wrap(~kmeans, scales = "fixed") +
+  labs(y = "Region",
+       x = "Mahalanobis distance to a given Duchcov K-means cluster")
+```
+
+```{r write-distances}
+write_rds(list(euclidean = euclidean_distance,
+               mahalanobis = mahalanobis_distance),
+          here::here("data/temp", "distances.RDS"))
+
+rm(list = c("iso", "src", "nest_matrix", "point_cloud_distance"))
+```
+
+
+### Discriminant analysis
+
+We attempt to use linear discriminant analysis to differentiate between groups 
+based on source regions and further predict the allocation of Duchcov data to 
+different source regions.
+
+#### MANOVA
+
+Multivariate analysis of variance is used in order to determine whether there are significant differences
+between group means for the distinct regions.
+
+```{r lm, echo=TRUE}
+sources_lm <- lm(as.matrix(sources[, c("Pb207_206", "Pb208_206",
+                                       "Pb206_204", "Pb207_204", "Pb208_204")]) ~ sources$region2)
+
+summary(sources_lm)
+
+summary(manova(sources_lm), test = "Pillai")
+# summary(manova(sources_lm), test = "Wilks")
+# summary(manova(sources_lm), test = "Roy")
+# summary(manova(sources_lm), test = "Hotelling-Lawley")
+```
+
+Significant results indicate that most of the source regions means are to some 
+extent different except Slovakia, Baia Mare and SE Alps in several of the tests.
+Thus the results for these source regions must be taken with care.
+
+#### LDA
+
+Linear discriminant analysis is then used to separate the regions.
+
+```{r lda, echo=TRUE}
+n_levels_sources <- length(levels(sources$region2))
+
+sources_lda <- MASS::lda(region2 ~ ., sources[, c("region2",
+                                                  "Pb207_206", "Pb208_206",
+                                                  "Pb206_204", "Pb207_204", "Pb208_204")],
+                         prior = as.double(
+                           paste(
+                             rep(1/n_levels_sources,
+                                 n_levels_sources), sep = ",")))
+sources_lda
+```
+
+Using the LDA to predict the regions of original points, we get a lot of error, see the confusion matrix below.
+*How to read it:* rows are the regions the point is from and columns are regions predicted
+based on the LDA.
+On the matrix diagonal are thus the numbers of points predicted correctly.
+
+```{r confusion-matrix}
+sources_pred <- predict(sources_lda)
+prediction <- with(sources_pred, data.frame(Region = sources$region2,
+                                            Predict = class, round(posterior, 2)))
+
+knitr::kable(addmargins(xtabs(formula = ~fct_drop(Region) + fct_drop(Predict), 
+                              data = prediction)),
+             caption = "Confusion matrix")
+```
+
+The overall rate of the model in predicting correct region is
+`r round(mean(prediction$Region == prediction$Predict), 2)`.
+
+<!--```{r indiv-predictions}
+knitr::kable(round(prop.table(table(droplevels(prediction$Region),
+droplevels(prediction$Predict)),
+margin = 1), 2),
+caption = "Individual correct predictions")
+```-->
+
+#### Prediction of Regions for Duchcov hoard.
+
+```{r duchcov-prediction-tab-prep}
+duchcov_prediction <- predict(object = sources_lda, newdata = isotopes[, ])
+duchcov_prediction_df <- with(duchcov_prediction,
+                              data.frame(kmeans = isotopes[, "kmeans"],
+                                         predicted_region = class,
+                                         round(posterior, 2))) %>% 
+  as_tibble()
+
+write_rds(duchcov_prediction_df, here::here("data/temp", "predictions.RDS"))
+```
+```{r duchcov-prediction-tab, results="asis"}
+# posterior probabilities of individual predictions
+cat("<table width='100%'>", 
+    paste0("<caption>", "(#tab:duchcov-prediction-tab)", 
+           "Posterior probabilities for predicted sources", 
+           "</caption>"), 
+    "</table>", 
+    sep = "\n")
+DT::datatable(duchcov_prediction_df,
+              rownames = FALSE,
+              options = list(scrollX = TRUE, scrollY = TRUE, dom = "ltip"))
+
+```
+
+```{r duchcov-prediction-fig, fig.cap="Mean posterior probabilities for different K-means clusters"}
+duchcov_prediction_df %>%
+  select(-predicted_region) %>%
+  gather(key = "region", value = "probability", -kmeans) %>%
+  group_by(kmeans, region) %>%
+  dplyr::summarize(mean_prob = mean(probability, na.rm = TRUE)) %>%
+  ggplot(aes(x = region, y = mean_prob)) +
+  geom_col(fill = "white", col = "black") +
+  facet_wrap(~kmeans, ncol = 1) +
+  labs(x = "Region", y = "Mean posterior probability") +
+  theme(axis.text.x = element_text(angle = -35, hjust = 0))
+```
+
+
+```{r clean-envir}
+rm(list = c("med_d_all", "med_d_regions",
+            "euclidean_distance", "mahalanobis_distance",
+            "filtered_regions", "sources_subset",
+            "sources_lm", "sources_lda", "sources_pred",
+            "n_levels_sources", "prediction",
+            "duchcov_prediction", "duchcov_prediction_df"))
+```
+
+
+# Comparison with finds from burials
+
+```{r data-burials}
+burials <- read_csv(here::here("data/analytical", "burial_grounds.csv"))
+```
+
+In this part of SI the artefacts from burial grounds are compared with items from the Duchcov 
+hoard in terms of their composition and lead isotopes.
+
+```{r compositionTableBur, results="asis"}
+dataCompoTabBur <- read_csv(here::here("reports", "table_compositions_burials.csv"))
+
+cat("<table width='100%'>", 
+    paste0("<caption>", "(#tab:compositionFullTableBur)", 
+           "Major, minor and trace element composition in the bronze objects from cemeteries as determined by ICP-MS (LGI). ",
+           "The analytical precision for all the analysed elements ranged from 0.3% to 3% relative. ", 
+           "Data are normalised to 100%; analytical total is provided", 
+           "</caption>"), 
+    "</table>", 
+    sep = "\n")
+
+# a custom table container
+sketch <- htmltools::withTags(table(
+  class = 'display',
+  thead(
+    tr(
+      th(rowspan = 3, 'ID'),
+      th(rowspan = 3, "Site and Code"),
+      th(rowspan =2, 'Detection limits'),
+      lapply(c("ppm", rep("%", 2), "ppm", "%", "ppm", rep("%", 8), "ppm"), th),
+      th("weight %")
+    ),
+    tr(
+      lapply(c("<100ppm", rep("<0.1%", 2), "<50ppm", "<0.1%", "<50ppm", 
+               "<0.01%", "<0.05%", "<0.01%", "<0.1%", "<0.005%", "<0.05%", 
+               "<0.005%", "<0.001%", "<50ppm"), th),
+      th(rowspan = 2, "Analytical total")
+    ),
+    tr(
+      # th(rowspan = 2, 'Detection limits'),
+      th('Element'),
+      lapply(colnames(dataCompoTabBur)[c(-1, -2, -18)], th),
+    )
+  )
+))
+
+DT::datatable(dataCompoTabBur, 
+              container = sketch,
+              extensions = c('Scroller', 'Buttons'),
+              width = "100%", 
+              options = list(
+                scrollX = TRUE, scrollY = 400, 
+                scroller = TRUE,
+                dom = "Bfrtip",
+                buttons = c("csv", "excel")
+              ))
+
+rm(list = "dataCompoTabBur")
+```
+
+```{r isotopesTableBur, results="asis"}
+cat("<table width='100%'>", 
+    paste0("<caption>", "(#tab:isotopesTableBur)", 
+           "Lead isotopes for finds from cemeteries. ",
+           "Relative analytical precision of measurements by MC-ICP-MS (IGMMR) ",
+           "are better than 0.005% (RSD) for ratios with <sup>206</sup>Pb in the denominator, ",
+           "and better than 0.01% with <sup>204</sup>Pb in the denominator", 
+           "</caption>"), 
+    "</table>", 
+    sep = "\n")
+
+burials %>% select(site, code, starts_with("Pb2")) %>% 
+  mutate(across(ends_with("206"), round, 4),
+         across(ends_with("204"), round, 3)) %>% 
+  rename(
+    'Site' = site, 'Code' = code, 
+    '<sup>207</sup>Pb/<sup>206</sup>Pb' = Pb207_206,
+    '<sup>208</sup>Pb/<sup>206</sup>Pb' = Pb208_206,
+    '<sup>206</sup>Pb/<sup>204</sup>Pb' = Pb206_204,
+    '<sup>207</sup>Pb/<sup>204</sup>Pb' = Pb207_204,
+    '<sup>208</sup>Pb/<sup>204</sup>Pb' = Pb208_204
+  ) %>% 
+  DT::datatable(escape = FALSE, 
+                width = "100%", 
+                extensions = c('Scroller', 'Buttons'),
+                options = list(
+                  scrollX = TRUE, scrollY = 400, 
+                  scroller = TRUE,
+                  dom = "Bfrtip",
+                  buttons = c("csv", "excel")
+                ))
+```
+
+```{r brooch}
+duchcov2 <- duchcov$meta %>% 
+  transmute(brooch = if_else(str_detect(type, "^brooch_"),
+                             "brooch", "not brooch"),
+            brooch = factor(brooch, levels = c("brooch", "not brooch")),
+            id = as.character(id)) %>%
+  left_join(rownames_to_column(as_tibble(duchcov$iso), "id")) %>% 
+  bind_cols(cluster)
+
+burials <- burials %>% mutate(brooch = if_else(str_detect(type_eng, "brooch_"),
+                                               "brooch", "not brooch"),
+                              brooch = factor(brooch, levels = c("brooch", "not brooch"))) %>% 
+  select(-type_eng) %>% 
+  mutate(site = str_replace(site, "_", " "))
+```
+
+```{r write-burials}
+write_rds(burials, here::here("data/temp", "burials.RDS"))
+```
+
+```{r burials-gg}
+g_bur_206_207 <- ggplot(burials, aes(Pb206_204, Pb207_204)) +
+  labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
+  lab_206_207 +
+  theme(legend.position = c(0.84, 0.2)) +
+  guides(shape = guide_legend(ncol = 2), color = guide_legend(ncol = 2))
+
+g_bur_206_208 <- ggplot(burials, aes(Pb206_204, Pb208_204)) +
+  labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
+  lab_206_208 +
+  theme(legend.position = c(0.84, 0.2)) +
+  guides(shape = guide_legend(ncol = 2), color = guide_legend(ncol = 2))
+
+g_bur_207_208 <- ggplot(burials, aes(Pb207_206, Pb208_206)) +
+  labs(color = "Burials", shape = "Duchcov k-means\ncluster") +
+  lab_207_208 +
+  theme(legend.position = c(0.84, 0.2)) +
+  guides(shape = guide_legend(ncol = 2), color = guide_legend(ncol = 2))
+```
+
+## Visual methods of comparison
+
+### Convex hulls
+
+```{r burials, fig.cap="Distribution of data from different burials (LTB1 horizon) overlaid with Duchcov hoard"}
+g_bur_206_207 + geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  ggforce::geom_mark_hull(aes(color = site, fill = site, 
+                              filter = Pb207_204 > 15.597), 
+                          expand = unit(2.4, "mm"),
+                          alpha = 0.1, show.legend = FALSE) +
+  scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
+  geom_point(data = duchcov2, aes(shape = kmeans), size = 2, alpha = 0.4) +
+  facet_wrap(~site)
+
+g_bur_206_208 + geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  ggforce::geom_mark_hull(aes(color = site, fill = site, 
+                              filter = Pb206_204 < 18.4 | Pb208_204 > 38.5), 
+                          expand = unit(2.4, "mm"),
+                          alpha = 0.1, show.legend = FALSE) +
+  scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
+  geom_point(data = duchcov2, aes(shape = kmeans), size = 2, alpha = 0.4) +
+  facet_wrap(~site)
+
+g_bur_207_208 + geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  ggforce::geom_mark_hull(aes(color = site, fill = site), expand = unit(2.4, "mm"),
+                          alpha = 0.1, show.legend = FALSE) +
+  scale_color_brewer(palette = "Set1") + scale_fill_brewer(palette = "Set1") +
+  geom_point(data = duchcov2, aes(shape = kmeans), size = 2, alpha = 0.4) +
+  facet_wrap(~site)
+```
+
+### KDE
+
+```{r kde-burials, fig.cap="KDE of data from different burials overlaid with Duchcov hoard"}
+g_bur_206_207 +
+  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2,
+                 h = c(0.3, 0.075), show.legend = FALSE) +
+  scale_fill_gradient(low = "white", high = "gray10") +
+  scale_color_brewer(palette = "Set1") +
+  geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_point(data = duchcov2, aes(shape = kmeans), size = 1.4, alpha = 0.4) +
+  facet_wrap(~site)
+
+g_bur_206_208 +
+  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, 
+                 h = c(0.4, 0.4), show.legend = FALSE) +
+  scale_fill_gradient(low = "white", high = "gray10") +
+  scale_color_brewer(palette = "Set1") +
+  geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_point(data = duchcov2, aes(shape = kmeans), size = 1.4, alpha = 0.4) +
+  facet_wrap(~site)
+
+g_bur_207_208 +
+  stat_density2d(aes(fill = stat(nlevel)), geom = "polygon", alpha = 0.2, 
+                 h = c(0.008, 0.02), show.legend = FALSE) +
+  scale_fill_gradient(low = "white", high = "black") +
+  scale_color_brewer(palette = "Set1") +
+  geom_point(aes(color = site), alpha = 0.8, show.legend = FALSE) +
+  geom_point(data = duchcov2, aes(shape = kmeans), size = 1.4, alpha = 0.4) +
+  facet_wrap(~site)
+```
+
+### Overall density distributions
+
+```{r}
+library(cowplot)
+```
+
+```{r bind-duchcov-burials}
+origin <- bind_rows(duchcov = duchcov2[, c("Pb207_204", "Pb206_204", 
+                                           "Pb208_204", "Pb208_206", 
+                                           "Pb207_206", "brooch")],
+                    burials = burials[, c("Pb207_204", "Pb206_204", 
+                                          "Pb208_204", "Pb208_206", 
+                                          "Pb207_206", "brooch")],
+                    .id = "origin")
+```
+
+```{r density206-207, fig.cap="Density distribution of burial finds and Duchcov hoard"}
+pmain206_207 <- ggplot(origin, aes(Pb206_204, Pb207_204, color = origin)) +
+  stat_density2d(show.legend = FALSE, alpha = 0.4) +
+  geom_point(size = 2, alpha = 0.4) +
+  scale_color_brewer(palette = "Set1") +
+  labs(color = "Origin") + lab_206_207
+
+ydens206_207 <- axis_canvas(pmain206_207, axis = "y", coord_flip = TRUE) +
+  geom_density(data = origin, aes(x = Pb207_204, fill = origin),
+               alpha = 0.2, size = 0.2) +
+  coord_flip() +
+  scale_fill_brewer(palette = "Set1")
+
+xdens206_207 <- axis_canvas(pmain206_207, axis = "x", coord_flip = FALSE) +
+  geom_density(data = origin, aes(x = Pb206_204, fill = origin),
+               alpha = 0.2, size = 0.2) +
+  scale_fill_brewer(palette = "Set1")
+
+pfinal206_207 <- insert_yaxis_grob(pmain206_207, ydens206_207, 
+                                   grid::unit(.2, "null"), position = "right")
+pfinal206_207 <- insert_xaxis_grob(pfinal206_207, xdens206_207, 
+                                   grid::unit(.2, "null"), position = "top")
+
+ggdraw(pfinal206_207)
+```
+
+```{r density206-208, fig.cap="Density distribution of burial finds and Duchcov hoard"}
+pmain206_208 <- ggplot(origin, aes(Pb206_204, Pb208_204, color = origin)) +
+  stat_density2d(show.legend = FALSE, alpha = 0.4) +
+  geom_point(size = 2, alpha = 0.4) +
+  scale_color_brewer(palette = "Set1") +
+  labs(color = "Origin") + lab_206_208
+
+ydens206_208 <- axis_canvas(pmain206_208, axis = "y", coord_flip = TRUE) +
+  geom_density(data = origin, aes(x = Pb208_204, fill = origin),
+               alpha = 0.2, size = 0.2) +
+  coord_flip() +
+  scale_fill_brewer(palette = "Set1")
+
+xdens206_208 <- axis_canvas(pmain206_208, axis = "x", coord_flip = FALSE) +
+  geom_density(data = origin, aes(x = Pb206_204, fill = origin),
+               alpha = 0.2, size = 0.2) +
+  scale_fill_brewer(palette = "Set1")
+
+pfinal206_208 <- insert_yaxis_grob(pmain206_208, ydens206_208, 
+                                   grid::unit(.2, "null"), position = "right")
+pfinal206_208 <- insert_xaxis_grob(pfinal206_208, xdens206_208, 
+                                   grid::unit(.2, "null"), position = "top")
+
+ggdraw(pfinal206_208)
+```
+
+```{r density207-208, fig.cap="Density distribution of burial finds and Duchcov hoard"}
+pmain207_208 <- ggplot(origin, aes(Pb207_206, Pb208_206, color = origin)) +
+  stat_density2d(show.legend = FALSE, alpha = 0.4) +
+  geom_point(size = 2, alpha = 0.4) +
+  scale_color_brewer(palette = "Set1") +
+  labs(color = "Origin") + lab_207_208
+
+ydens207_208 <- axis_canvas(pmain207_208, axis = "y", coord_flip = TRUE) +
+  geom_density(data = origin, aes(x = Pb208_206, fill = origin),
+               alpha = 0.2, size = 0.2) +
+  coord_flip() +
+  scale_fill_brewer(palette = "Set1")
+
+xdens207_208 <- axis_canvas(pmain207_208, axis = "x", coord_flip = FALSE) +
+  geom_density(data = origin, aes(x = Pb207_206, fill = origin),
+               alpha = 0.2, size = 0.2) +
+  scale_fill_brewer(palette = "Set1")
+
+pfinal207_208 <- insert_yaxis_grob(pmain207_208, ydens207_208, 
+                                   grid::unit(.2, "null"), position = "right")
+pfinal207_208 <- insert_xaxis_grob(pfinal207_208, xdens207_208, 
+                                   grid::unit(.2, "null"), position = "top")
+
+ggdraw(pfinal207_208)
+```
+
+## Grouping in artefact assemblage from burials
+
+PCA is applied to reduce dimensions (for details see [Compositional analysis](#pca) section).
+
+```{r burials-pca, echo=TRUE}
+burials_pca <- prcomp(scale(log1p(burials[, elements])))
+
+summary(burials_pca) 
+# PC1 to PC6 to retain > 95 % variance
+
+burials_pca <- burials_pca$x[, 1:6]
+```
+
+```{r burials-scree, fig.cap="Scree plot"}
+plot_scree_clusters(burials_pca)
+```
+
+```{r burials-silhouette, fig.cap="Silhouettes"}
+plot_sil_width(burials_pca)
+```
+
+```{r burials-clusters}
+burials_cluster <- tibble(kmeans = kmeans(burials_pca, centers = 4, nstart = 40)$cluster) %>% 
+  mutate(kmeans = as_factor(kmeans))
+
+rename_clusters <- function(cluster_b) {
+  cluster_b_tab <- cluster_b %>% dplyr::count(kmeans) %>% 
+    mutate(group = if_else(n > 44, "A",
+                           if_else(n < 44 & n > 30, "B", NA_character_))) %>% 
+    select(kmeans, group)
+  cluster_b_lookup <- cluster_b_tab$group
+  names(cluster_b_lookup) <- cluster_b_tab$kmeans
+  cluster_b_out <- cluster_b %>% 
+    filter(kmeans %in% cluster_b_tab$kmeans) %>% 
+    mutate(kmeans = unname(cluster_b_lookup[as.character(kmeans)]))
+  return(cluster_b_out)
+}
+
+burials_plot <- bind_cols(burials, rename_clusters(burials_cluster)) %>% 
+  filter(!is.na(kmeans))
+
+write_rds(burials_plot, here::here("data/temp", "burials_clusters.RDS"))
+```
+
+```{r burials-clusters-plots, fig.cap="Density distribution of two groups in burial finds"}
+burials_plot %>% 
+  ggplot(aes(Pb206_204, Pb207_204)) +
+  stat_density2d(aes(color = kmeans, alpha = ..level..), 
+                 size = 0.6, h = c(0.18, 0.05), show.legend = FALSE) +
+  geom_point(aes(color = kmeans), alpha = 0.6, size = 1.8) +
+  scale_color_brewer(aesthetics = c("color", "fill"), palette = "Set1", name = "Burials\ngroup") +
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 1.8) + 
+  labs(shape = "Duchcov\nK-means\ncluster") + lab_206_207
+
+burials_plot %>% 
+  ggplot(aes(Pb206_204, Pb208_204)) +
+  stat_density2d(aes(color = kmeans, alpha = ..level..), 
+                 size = 0.6, h = c(0.14, 0.2), show.legend = FALSE) +
+  geom_point(aes(color = kmeans), alpha = 0.6, size = 1.8) +
+  scale_color_brewer(aesthetics = c("color", "fill"), palette = "Set1", name = "Burials\ngroup") +
+  geom_point(data = isotopes, aes(shape = kmeans), alpha = 0.8, size = 1.8) + 
+  labs(shape = "Duchcov\nK-means\ncluster") + lab_206_208
+```
+
+# Lithium in the alloy
+
+In several samples, elevated concentrations of lithium were detected (see Tab.  \@ref(tab:compositionFullTable)).
+These objects are mainly represented in cluster 3, associated with the Erzgebirge. 
+In this cluster, lithium correlates with an increased concentration of zinc. 
+Lithium was also observed in cluster 1 (see Fig. \@ref(fig:figLithiumRanges)),
+without the correlation with zinc or other elements.
+
+```{r figLithiumCap}
+figLithiumRangesCaption <- "Lithium range in the samples in LI space of the Duchcov hoard. The highest amounts (thousandths of ppm) are associated with cluster 3, located in the western Erzgebirge. The second occurrence, with lower concentrations, corresponds to cluster 1"
+```
+```{r figLithiumRanges, fig.cap=figLithiumRangesCaption}
+isotopes %>% 
+  bind_cols(Li = duchcov$comp[, "Li"]) %>% 
+  mutate(ppm_li = if_else(Li > 0.01 & Li < 0.1, "100 ppm", "0 ppm"),
+         ppm_li = if_else(Li > 0.1, "1000 ppm", ppm_li)) %>%
+  ggplot(aes(x = Pb206_204, y = Pb207_204)) +
+  geom_point(aes(shape = ppm_li, color = ppm_li, fill = ppm_li), size = 2.4) +
+  scale_shape_manual(values = c(1, 22, 21), name = element_blank()) +
+  scale_color_manual(values = c("gray", "steelblue", "steelblue"), name = element_blank()) +
+  scale_fill_manual(values = c("gray", NA, "steelblue"), name = element_blank()) +
+  coord_cartesian(ylim = c(15.59, 15.68)) +
+  lab_206_207 +
+  theme_minimal()
+```
+
+
+Because the low atomic weight of lithium makes it challenging to detect using spectral analysis, we chose to search for a potential hosting matrix instead. 
+SEM/EDS analysis revealed several inclusions whose composition was different from the surrounding alloy 
+(see Fig. \@ref(fig:figMicro) and Tab. \@ref(tab:tabInclusions)).
+
+```{r}
+figMicroCaption <- "Silicate-calcium-aluminium-based inclusions of mica mineral (possibly of the zinnwaldite type) in the copper alloy suggesting that either insufficiently refined ore or tin oxides were added to the alloy during the metallurgical process. These inclusions are a potential source of the lithium detected by ICP-MS"
+```
+```{r figMicro, fig.cap=figMicroCaption}
+knitr::include_graphics(here::here("reports", "microscope.png"))
+```
+
+```{r tabInclusions}
+tabInclusionsCaption <- "Quantification results of the SEM/EDS analysis of the inclusions in the brooch with the detected presence of lithium (UPA), Bruker Nano GmbH, Germany"
+read_csv(here::here("reports", "table_inclusions.csv")) %>% 
+  mutate(across(where(is.numeric), round, 1)) %>% 
+  knitr::kable(caption = tabInclusionsCaption)
+```
+
+
+The inclusion was mainly composed of silicate-aluminium-calcium-based oxides, together with elevated concentrations of Mg, Al, Mn and Fe detected by the ICP-MS and confirmed by SEM/EDS. 
+These elements possibly originate from mica minerals, which in certain deposits could also contain lithium. 
+Throughout Europe, lithium occurrences are spatially associated with granitic rocks in different ore-bearing assemblages [@gourcerol2019; @negrel2019].
+<!-- (Gourcerol et al., 2019; Négrel et al., 2019). -->
+The closest occurrences to the Duchcov hoard are near Krupka in the eastern Erzgebirge, and in the western Erzgebirge [@breiter2017],
+<!-- (Breiter et al., 2017) -->
+where zinc also appears. 
+The typical Li-bearing mica mineral in the Erzgebirge area is zinnwaldite $(KLiFeAl(AlSi_3)O_{10}(OH,F)_2)$, which appears in altered greisen rocks that are a significant source of cassiterite [@stemprok2003; @stemprok1987].
+<!-- (Štemprok, 1987; 2003). -->
+If the placers were close to the primary source, the connection/fusion of cassiterite and zinnwaldite would not be unusual. 
+The only natural sources of Li available in Europe are Li-silicates and Li-phosphates. 
+The silicates include zinnwaldite, abundantly accompanying tin ores in the eastern part of the Ore Mountains. 
+LiAl-phosphate montebrasite occurs in the only small Sn-deposit in western Bohemia. 
+Because in the prehistory we assume sourcing of tin from placer deposits, zinnwaldite is the only possible source.
+
+We may assume that the lithium detected in the alloy is a result of alloying with cassiterite which still contained inclusions of the original ore. 
+It may point to the use of primary materials. 
+Other greisen rocks containing lithium with Pb-Zn are recorded in the Massif Central and the western Alps [@gourcerol2019; negrel2019].
+<!-- (Gourcerol et al., 2019; Négrel et al., 2019). -->
+The area around the Massif Central has so far yielded limited evidence on Duchcov type brooches from the 4th century BCE [@auguier2007],
+<!-- (Augier et al., 2007), -->
+so an origin for these samples either in the Erzgebirge or in the western Alps seems more probable. 
+
+The mechanical contamination could also cause inclusions of mineral origin during the technological process, e.g. from the crucible or mould that contained mica particles. 
+Such impurities would flow on the surface or stick to the wall of the crucible, but the presence of non-metallic inclusions in the alloy is not impossible and was reported before [e.g. @berger2017]. <!-- (e.g. Berger et al., 2019). -->
+
+It has to be pointed out that observed concentrations are relatively high – thousands and hundreds of ppm respectively. 
+It may be possible that reached concentration is a result of the laboratory pre-treatment of samples, that also could have caused lower concentrations of Mg, Al and Si (that could be lost during the digestion). 
+Without at least partial destruction of the object, no further data on Li speciation can be obtained at the moment.
+
+The purpose of including this finding in the paper was that we wanted to draw attention to the fact that lithium could be, more or less commonly, found in prehistoric bronze alloys.
+If there would be a possibility to investigate this properly (e.g. by TEM/EELS) on objects that are not subject to museum restrictions (we were not allowed to take additional samples for further analyses), it might bring new knowledge regarding either provenance of tin, or technological aspects of the Iron Age bronze production.
+
+# Strontium isotope data
+
+```{r tableStrontium, results='asis'}
+cat("<table width='100%'>", 
+    paste0("<caption>", "(#tab:tableStrontium)", 
+           "Mobility data (Strontium isotopes)", 
+           "</caption>"), 
+    "</table>", 
+    sep = "\n")
+
+read_csv(here::here("reports", "table_sr.csv")) %>% 
+  rename(
+    '<sup>87</sup>Sr/<sup>86</sup>Sr' = Sr87_86,
+    '&Delta;<sup>87</sup>Sr/<sup>86</sup>Sr' = DeltaSr87_86
+  ) %>% 
+  DT::datatable(
+    escape = FALSE,
+    extensions = c('Scroller', 'Buttons'), 
+                options = list(
+                  scrollY = 300, scroller = TRUE,
+                  dom = "Bfrtip",
+                  buttons = c("csv", "excel")
+                )
+  )
+```
+
+<!-- source scripts to create figures -->
+
+```{r create-figs, results=FALSE, fig.show='hide'}
+scripts_figs <- paste0(here::here("code/"), list.files(here::here("code")))
+scripts_figs <- str_subset(scripts_figs, "FIG\\_.\\.R$")
+
+for (i in seq_along(scripts_figs)) {
+  source(scripts_figs[i])
+}
+```
+
+# References

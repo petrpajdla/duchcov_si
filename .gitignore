@@ -7,13 +7,19 @@
 # make Rout files
 *.Rout
 
+README.html
+
 # raw text of the article
 /text/
 
 # data on ore sources, raw data, temporary data
 /data/raw
 /data/temp
-/data/ore_sources.csv
+/data/analytical/sources.csv
 
 # backups
 *.zip
+
+# knit results
+/reports/duchcov_support_files
+/reports/duchcov_support.html
